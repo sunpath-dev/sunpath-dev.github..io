@@ -373,11 +373,11 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
           <div>
             <h2 className="text-lg font-semibold leading-tight">{parcel.address}</h2>
             {ownerRow ? (
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-700">
                 {ownerRow.city}, {ownerRow.state} {ownerRow.postal_code}
               </p>
             ) : (
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-700">
                 {parcel.lat.toFixed(4)}, {parcel.lon.toFixed(4)}
               </p>
             )}
@@ -394,16 +394,16 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
         {/* KNOCK SCORE */}
         <div className="mb-3 rounded-lg border bg-slate-50 p-3 text-sm">
           {parcel.existing ? (
-            <span className="text-slate-600">
+            <span className="text-slate-800">
               Existing solar on record — excluded from scoring.
             </span>
           ) : (
             <>
-              <span className="font-medium">Knock score </span>
+              <span className="font-semibold text-slate-800">Knock score </span>
               <span className="text-2xl font-bold text-amber-700">
                 {parcel.score < 0 ? "—" : parcel.score}
               </span>
-              <span className="text-slate-500"> / 100</span>
+              <span className="text-slate-700"> / 100</span>
             </>
           )}
           {hoa ? (
@@ -432,11 +432,11 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
             <h3 className="mb-2 text-sm font-semibold text-slate-900">Property Owner</h3>
             {ownerRow ? (
               <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                <dt className="text-slate-600">Owner</dt>
+                <dt className="font-medium text-slate-700">Owner</dt>
                 <dd className="text-slate-700">
                   {ownerRow.owner_name_redacted ?? "Not on record"}
                 </dd>
-                <dt className="text-slate-600">Occupancy</dt>
+                <dt className="font-medium text-slate-700">Occupancy</dt>
                 <dd className={ownerRow.owner_occupied === true ? "font-medium text-green-700" : "text-slate-700"}>
                   {ownerRow.owner_occupied === true
                     ? "Owner-occupied"
@@ -455,17 +455,17 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
         <section className="mb-3 rounded-lg border bg-white p-3">
           <h3 className="mb-2 text-sm font-semibold text-slate-900">Location & Risk</h3>
           <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-            <dt className="text-slate-600">Coordinates</dt>
+            <dt className="font-medium text-slate-700">Coordinates</dt>
             <dd className="text-slate-700">
               {parcel.lat.toFixed(5)}, {parcel.lon.toFixed(5)}
             </dd>
-            <dt className="text-slate-600">County (FIPS)</dt>
+            <dt className="font-medium text-slate-700">County (FIPS)</dt>
             <dd className="text-slate-700">
               {DEFAULT_FIPS[parcel.state] != null
                 ? `${parcel.state} — ${DEFAULT_FIPS[parcel.state]!.county}`
                 : parcel.state}
             </dd>
-            <dt className="text-slate-600">Utility rate</dt>
+            <dt className="font-medium text-slate-700">Utility rate</dt>
             <dd className="text-slate-700">
               {utilityRate != null
                 ? `$${utilityRate.toFixed(3)}/kWh`
@@ -473,12 +473,12 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
             </dd>
             {femaZone === "loading" ? (
               <>
-                <dt className="text-slate-600">Flood zone</dt>
+                <dt className="font-medium text-slate-700">Flood zone</dt>
                 <dd className="text-slate-400 animate-pulse">Checking FEMA…</dd>
               </>
             ) : femaZone !== null ? (
               <>
-                <dt className="text-slate-600">Flood zone</dt>
+                <dt className="font-medium text-slate-700">Flood zone</dt>
                 <dd className={femaZone.sfha ? "font-medium text-orange-700" : "text-slate-700"}>
                   {femaZone.label}
                 </dd>
@@ -491,34 +491,34 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
         {hasHomeFacts ? (
           <section className="mb-3 rounded-lg border bg-white p-3">
             <h3 className="mb-2 text-sm font-semibold text-slate-900">Home Facts</h3>
-            <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-600">
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-900">
               {yearBuilt !== undefined ? (
                 <>
-                  <dt className="text-slate-600">Built</dt>
+                  <dt className="font-medium text-slate-700">Built</dt>
                   <dd>{yearBuilt}</dd>
                 </>
               ) : null}
               {parcel.sqft !== undefined ? (
                 <>
-                  <dt className="text-slate-600">Size</dt>
+                  <dt className="font-medium text-slate-700">Size</dt>
                   <dd>{parcel.sqft.toLocaleString()} sqft</dd>
                 </>
               ) : null}
               {roofOrientation !== undefined ? (
                 <>
-                  <dt className="text-slate-600">Orientation</dt>
+                  <dt className="font-medium text-slate-700">Orientation</dt>
                   <dd>{orientationLabel(roofOrientation)}</dd>
                 </>
               ) : null}
               {assessedValue !== undefined ? (
                 <>
-                  <dt className="text-slate-600">Assessed value</dt>
+                  <dt className="font-medium text-slate-700">Assessed value</dt>
                   <dd>{fmt$(Number(assessedValue))}</dd>
                 </>
               ) : null}
               {parcel.last_sale_date !== undefined ? (
                 <>
-                  <dt className="text-slate-600">Last sold</dt>
+                  <dt className="font-medium text-slate-700">Last sold</dt>
                   <dd>
                     {parcel.last_sale_date}
                     {parcel.last_sale_price_usd !== undefined
@@ -537,22 +537,22 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
             <h3 className="mb-2 text-sm font-semibold text-slate-900">
               Area Context (Census)
             </h3>
-            <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-600">
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-900">
               {census.owner_occupied_pct !== null ? (
                 <>
-                  <dt className="text-slate-600">Owner-occupied</dt>
+                  <dt className="font-medium text-slate-700">Owner-occupied</dt>
                   <dd>{census.owner_occupied_pct}%</dd>
                 </>
               ) : null}
               {census.median_household_income_usd !== null ? (
                 <>
-                  <dt className="text-slate-600">Median income</dt>
+                  <dt className="font-medium text-slate-700">Median income</dt>
                   <dd>{fmt$(census.median_household_income_usd)}</dd>
                 </>
               ) : null}
               {census.median_home_value_usd !== null ? (
                 <>
-                  <dt className="text-slate-600">Median home value</dt>
+                  <dt className="font-medium text-slate-700">Median home value</dt>
                   <dd>{fmt$(census.median_home_value_usd)}</dd>
                 </>
               ) : null}
@@ -564,18 +564,18 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
         {estimate ? (
           <section className="mb-3 rounded-lg border bg-white p-3">
             <h3 className="mb-2 text-sm font-semibold text-slate-900">Energy & Solar</h3>
-            <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-600">
-              <dt className="text-slate-600">System modeled</dt>
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-900">
+              <dt className="font-medium text-slate-700">System modeled</dt>
               <dd>{SYSTEM_KW} kW</dd>
-              <dt className="text-slate-600">Annual production</dt>
+              <dt className="font-medium text-slate-700">Annual production</dt>
               <dd>{estimate.ac_annual_kwh.toLocaleString()} kWh/yr</dd>
-              <dt className="text-slate-600">Capacity factor</dt>
+              <dt className="font-medium text-slate-700">Capacity factor</dt>
               <dd>{(estimate.capacity_factor * 100).toFixed(1)}%</dd>
-              <dt className="text-slate-600">Rate used</dt>
+              <dt className="font-medium text-slate-700">Rate used</dt>
               <dd className="text-slate-700">
                 ${effectiveRate.toFixed(3)}/kWh
               </dd>
-              <dt className="text-slate-600">Est. savings/yr</dt>
+              <dt className="font-medium text-slate-700">Est. savings/yr</dt>
               <dd className="font-medium text-green-700">
                 {fmt$(estimate.ac_annual_kwh * effectiveRate)}/yr
               </dd>
@@ -587,14 +587,14 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
         {rooftop ? (
           <section className="mb-3 rounded-lg border bg-white p-3">
             <h3 className="mb-2 text-sm font-semibold text-slate-900">Roof Analysis</h3>
-            <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-600">
-              <dt className="text-slate-600">Facing</dt>
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-900">
+              <dt className="font-medium text-slate-700">Facing</dt>
               <dd>{rooftop.south_facing ? "South-facing" : "Not south-facing"}</dd>
-              <dt className="text-slate-600">Viable area</dt>
+              <dt className="font-medium text-slate-700">Viable area</dt>
               <dd>{rooftop.viable_area_sqft.toLocaleString()} sqft</dd>
-              <dt className="text-slate-600">Max system</dt>
+              <dt className="font-medium text-slate-700">Max system</dt>
               <dd>{rooftop.max_kw} kW</dd>
-              <dt className="text-slate-600">Panel count</dt>
+              <dt className="font-medium text-slate-700">Panel count</dt>
               <dd>{rooftop.panel_count}</dd>
             </dl>
           </section>
@@ -607,21 +607,21 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
               Financial Model
             </h3>
             <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-700">
-              <dt className="text-slate-500">System cost</dt>
+              <dt className="font-medium text-slate-700">System cost</dt>
               <dd>{fmt$(finModel.systemCost)}</dd>
-              <dt className="text-slate-500">Federal ITC (30%)</dt>
+              <dt className="font-medium text-slate-700">Federal ITC (30%)</dt>
               <dd className="text-green-700">−{fmt$(finModel.itcRebate)}</dd>
-              <dt className="text-slate-500">Annual savings</dt>
+              <dt className="font-medium text-slate-700">Annual savings</dt>
               <dd className="font-medium text-green-700">
                 {fmt$(finModel.annualSavings)}/yr
               </dd>
-              <dt className="text-slate-500">Payback</dt>
+              <dt className="font-medium text-slate-700">Payback</dt>
               <dd className="font-semibold">
                 {finModel.paybackYrs !== null
                   ? `~${finModel.paybackYrs.toFixed(1)} yrs with 30% federal ITC`
                   : "—"}
               </dd>
-              <dt className="text-slate-500">25-yr net savings</dt>
+              <dt className="font-medium text-slate-700">25-yr net savings</dt>
               <dd
                 className={
                   finModel.savings25yr >= 0 ? "text-green-700" : "text-red-700"
@@ -644,7 +644,7 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
               <div className="font-medium text-green-800">
                 Federal Investment Tax Credit (ITC) — 30%
               </div>
-              <div className="mt-0.5 text-slate-600">
+              <div className="mt-0.5 text-slate-800">
                 No cap, applies to full installed cost, valid through 2032
               </div>
             </li>
@@ -657,9 +657,9 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
                     className="rounded border bg-white p-2 text-xs shadow-sm"
                   >
                     <div className="font-medium">{p.name}</div>
-                    <div className="text-slate-600">{p.summary}</div>
+                    <div className="text-slate-800">{p.summary}</div>
                     {p.benefit_pct !== null ? (
-                      <div className="mt-1 text-slate-500">
+                      <div className="mt-1 text-slate-700">
                         Benefit: {p.benefit_pct}%
                         {p.expires_on ? ` • expires ${p.expires_on}` : ""}
                       </div>
@@ -686,7 +686,7 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
             <h3 className="mb-2 text-sm font-semibold text-slate-900">
               Neighborhood Proof (last 30d)
             </h3>
-            <div className="flex gap-6 text-xs text-slate-600">
+            <div className="flex gap-6 text-xs text-slate-800">
               <div>
                 <span className="text-lg font-bold text-amber-700">
                   {triggers.permits}
@@ -742,7 +742,7 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
             </div>
           ) : showKnockPicker ? (
             <div className="rounded-lg border p-3">
-              <p className="mb-2 text-xs font-semibold text-slate-600">
+              <p className="mb-2 text-xs font-semibold text-slate-800">
                 Select outcome:
               </p>
               <div className="grid grid-cols-3 gap-1.5">
@@ -805,7 +805,7 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
           <button
             type="button"
             onClick={() => setShowPitches(true)}
-            className="w-full rounded border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+            className="w-full rounded border border-slate-400 px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50"
           >
             Pitches
           </button>
