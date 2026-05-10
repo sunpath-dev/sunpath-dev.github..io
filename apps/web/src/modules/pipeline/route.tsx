@@ -1,6 +1,34 @@
 import { STAGES, moveLeadStage, useLeadsByStage, type Stage } from "./repo.js";
 import { TriggersInbox } from "./TriggersInbox.js";
 
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+
+async function downloadDoorcard(parcelId: string) {
+  if (!SUPABASE_URL) {
+    alert("Supabase URL not configured for this build.");
+    return;
+  }
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/doorcard-pdf`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ parcel_id: parcelId }),
+    });
+    if (!res.ok) throw new Error(`doorcard ${res.status}`);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `doorcard-${parcelId.slice(0, 8)}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch (err) {
+    alert(`Doorcard failed: ${err instanceof Error ? err.message : err}`);
+  }
+}
+
 /**
  * Pipeline view — kanban of leads by stage. Reads live from Dexie.
  * Each card has compact ◄ ► chevrons to nudge a lead between stages
@@ -65,6 +93,19 @@ export function PipelineRoute() {
                           >
                             ◄
                           </button>
+                          {l.parcel_id ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                void downloadDoorcard(l.parcel_id as string)
+                              }
+                              className="rounded px-1 text-slate-500 hover:bg-slate-100"
+                              aria-label="Print doorcard"
+                              title="Print doorcard"
+                            >
+                              🖨
+                            </button>
+                          ) : null}
                           <button
                             type="button"
                             disabled={stageIdx === STAGES.length - 1}
