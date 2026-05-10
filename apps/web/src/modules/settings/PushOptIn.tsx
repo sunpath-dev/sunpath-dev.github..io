@@ -72,9 +72,16 @@ export function PushOptIn() {
 
   const onSubscribe = async () => {
     if (!VAPID_PUBLIC_KEY) return;
-    setState("subscribing");
     setError(null);
+    setState("subscribing");
     try {
+      if (Notification.permission === "default") {
+        const perm = await Notification.requestPermission();
+        if (perm !== "granted") {
+          setState("denied");
+          return;
+        }
+      }
       const reg = await navigator.serviceWorker.ready;
       // PushManager.subscribe wants BufferSource over a fixed ArrayBuffer.
       // urlBase64ToUint8Array returns a Uint8Array<ArrayBufferLike> under

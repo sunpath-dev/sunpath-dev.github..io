@@ -36,6 +36,9 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff,woff2}'],
+        // Pull in our payload-less Web Push handler so notifications work
+        // even when the workbox-generated SW is in charge of the lifecycle.
+        importScripts: ['pwa-push.js'],
         runtimeCaching: [
           {
             urlPattern: ({ url }) =>
