@@ -104,6 +104,10 @@ function fmt$(n: number): string {
   return `$${n.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 }
 
+function Skeleton({ w = "full", h = "3" }: { w?: string; h?: string }) {
+  return <div className={`animate-pulse rounded bg-slate-100 w-${w} h-${h}`} />;
+}
+
 export interface ParcelDetail {
   id: string;
   address: string;
@@ -493,109 +497,158 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
 
   return (
     <>
+      {/* Sheet: flex column so sticky footer doesn't scroll away */}
       <div
-        className="absolute inset-x-0 bottom-0 z-10 max-h-[80vh] overflow-y-auto rounded-t-2xl border-t bg-white p-4 shadow-2xl"
+        className="absolute inset-x-0 bottom-0 z-10 flex max-h-[85vh] flex-col rounded-t-2xl border-t bg-white shadow-2xl"
         role="dialog"
         aria-label="Parcel detail"
       >
-        <div className="mb-3 flex items-start justify-between gap-2">
-          <div>
-            <h2 className="text-lg font-semibold leading-tight">{parcel.address}</h2>
-            {ownerRow ? (
-              <p className="text-xs text-slate-700">
-                {ownerRow.city}, {ownerRow.state} {ownerRow.postal_code}
-              </p>
-            ) : (
-              <p className="text-xs text-slate-700">
-                {parcel.lat.toFixed(4)}, {parcel.lon.toFixed(4)}
-              </p>
-            )}
-          </div>
-          <button
-            onClick={onClose}
-            className="rounded p-1 text-slate-500 hover:bg-slate-100"
-            aria-label="Close"
-          >
-            ✕
-          </button>
-        </div>
+        {/* ── SCROLLABLE BODY ── */}
+        <div className="flex-1 overflow-y-auto px-4 pb-2 pt-3">
 
-        {/* KNOCK SCORE */}
-        <div className="mb-3 rounded-lg border bg-slate-50 p-3 text-sm">
-          {parcel.existing ? (
-            <span className="text-slate-800">
-              Existing solar on record — excluded from scoring.
-            </span>
-          ) : (
-            <>
-              <span className="font-semibold text-slate-800">Knock score </span>
-              <span className="text-2xl font-bold text-amber-700">
-                {parcel.score < 0 ? "—" : parcel.score}
-              </span>
-              <span className="text-slate-700"> / 100</span>
-            </>
-          )}
-          {hoa ? (
-            <div className="mt-2 flex items-center gap-2">
-              <span
-                className={
-                  hoa.rule_color === "red"
-                    ? "inline-block h-2 w-2 rounded-full bg-red-500"
-                    : hoa.rule_color === "yellow"
-                      ? "inline-block h-2 w-2 rounded-full bg-yellow-500"
-                      : "inline-block h-2 w-2 rounded-full bg-green-500"
-                }
-                aria-hidden
-              />
-              <span className="text-xs text-slate-700">
-                HOA: {hoa.name}
-                {hoa.notes ? ` — ${hoa.notes}` : ""}
-              </span>
+          {/* HEADER */}
+          <div className="mb-2 flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <h2 className="truncate text-base font-bold leading-tight text-slate-900">
+                {parcel.address}
+              </h2>
+              <div className="mt-0.5 flex flex-wrap items-center gap-2">
+                {ownerRow ? (
+                  <span className="text-xs text-slate-600">
+                    {ownerRow.city}, {ownerRow.state} {ownerRow.postal_code}
+                  </span>
+                ) : (
+                  <span className="text-xs text-slate-500">
+                    {parcel.lat.toFixed(4)}, {parcel.lon.toFixed(4)}
+                  </span>
+                )}
+                {hoa && (
+                  <span className={[
+                    "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
+                    hoa.rule_color === "red" ? "bg-red-100 text-red-800" :
+                    hoa.rule_color === "yellow" ? "bg-yellow-100 text-yellow-800" :
+                    "bg-green-100 text-green-800",
+                  ].join(" ")}>
+                    <span className={[
+                      "h-1.5 w-1.5 rounded-full",
+                      hoa.rule_color === "red" ? "bg-red-500" :
+                      hoa.rule_color === "yellow" ? "bg-yellow-500" : "bg-green-500",
+                    ].join(" ")} />
+                    HOA
+                  </span>
+                )}
+                {finModelIsActual && (
+                  <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
+                    ★ Bill linked
+                  </span>
+                )}
+              </div>
             </div>
-          ) : null}
-        </div>
+            <button
+              onClick={onClose}
+              className="shrink-0 rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+              aria-label="Close"
+            >
+              ✕
+            </button>
+          </div>
 
-        {/* PROPERTY OWNER */}
-        {!parcel.id.startsWith("geo:") && (
-          <section className="mb-3 rounded-lg border bg-white p-3">
-            <h3 className="mb-2 text-sm font-semibold text-slate-900">Property Owner</h3>
-            {ownerRow ? (
-              <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                <dt className="font-medium text-slate-700">Owner</dt>
-                <dd className="text-slate-700">
-                  {ownerRow.owner_name_redacted ?? "Not on record"}
-                </dd>
-                <dt className="font-medium text-slate-700">Occupancy</dt>
-                <dd className={ownerRow.owner_occupied === true ? "font-medium text-green-700" : "text-slate-700"}>
-                  {ownerRow.owner_occupied === true
-                    ? "Owner-occupied"
-                    : ownerRow.owner_occupied === false
-                      ? "Rental / non-owner"
-                      : "Unknown"}
-                </dd>
-              </dl>
-            ) : (
-              <p className="text-xs text-slate-400 animate-pulse">Loading…</p>
-            )}
-          </section>
-        )}
+          {/* HERO STATS STRIP */}
+          <div className="mb-3 grid grid-cols-4 gap-1.5">
+            {/* Score */}
+            <div className="rounded-xl bg-amber-50 p-2 text-center">
+              <div className="text-xl font-extrabold leading-none text-amber-700">
+                {parcel.existing ? "★" : parcel.score < 0 ? "—" : parcel.score}
+              </div>
+              <div className="mt-0.5 text-[10px] font-medium text-slate-500 uppercase tracking-wide">
+                {parcel.existing ? "Solar" : "Score"}
+              </div>
+            </div>
+            {/* Savings */}
+            <div className="rounded-xl bg-green-50 p-2 text-center">
+              {finModel ? (
+                <>
+                  <div className="text-sm font-extrabold leading-none text-green-700">
+                    {fmt$(finModel.annualSavings)}
+                  </div>
+                  <div className="mt-0.5 text-[10px] font-medium text-slate-500 uppercase tracking-wide">
+                    /yr saved
+                  </div>
+                </>
+              ) : (
+                <Skeleton w="full" h="8" />
+              )}
+            </div>
+            {/* Payback */}
+            <div className="rounded-xl bg-blue-50 p-2 text-center">
+              {finModel ? (
+                <>
+                  <div className="text-sm font-extrabold leading-none text-blue-700">
+                    {finModel.paybackYrs != null ? `${finModel.paybackYrs.toFixed(1)}y` : "—"}
+                  </div>
+                  <div className="mt-0.5 text-[10px] font-medium text-slate-500 uppercase tracking-wide">
+                    Payback
+                  </div>
+                </>
+              ) : (
+                <Skeleton w="full" h="8" />
+              )}
+            </div>
+            {/* Sun hours */}
+            <div className="rounded-xl bg-orange-50 p-2 text-center">
+              {estimate?.peak_sun_hours_day != null ? (
+                <>
+                  <div className="text-sm font-extrabold leading-none text-orange-700">
+                    {estimate.peak_sun_hours_day}h
+                  </div>
+                  <div className="mt-0.5 text-[10px] font-medium text-slate-500 uppercase tracking-wide">
+                    Sun/day
+                  </div>
+                </>
+              ) : (
+                <Skeleton w="full" h="8" />
+              )}
+            </div>
+          </div>
 
-        {/* LOCATION & RISK — always shown (flood zone, coordinates) */}
-        <section className="mb-3 rounded-lg border bg-white p-3">
-          <h3 className="mb-2 text-sm font-semibold text-slate-900">Location & Risk</h3>
+          {/* PROPERTY OWNER */}
+          {!parcel.id.startsWith("geo:") && (
+            <section className="mb-2 rounded-xl border bg-white p-3">
+              <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Property Owner
+              </h3>
+              {ownerRow ? (
+                <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                  <dt className="font-medium text-slate-700">Owner</dt>
+                  <dd className="text-slate-800">
+                    {ownerRow.owner_name_redacted ?? "Not on record"}
+                  </dd>
+                  <dt className="font-medium text-slate-700">Occupancy</dt>
+                  <dd className={ownerRow.owner_occupied === true ? "font-semibold text-green-700" : "text-slate-800"}>
+                    {ownerRow.owner_occupied === true
+                      ? "Owner-occupied"
+                      : ownerRow.owner_occupied === false
+                        ? "Rental / non-owner"
+                        : "Unknown"}
+                  </dd>
+                </dl>
+              ) : (
+                <div className="space-y-1.5">
+                  <Skeleton h="3" />
+                  <Skeleton w="3/4" h="3" />
+                </div>
+              )}
+            </section>
+          )}
+
+        {/* LOCATION & RISK */}
+        <section className="mb-2 rounded-xl border bg-white p-3">
+          <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Location & Risk
+          </h3>
           <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-            <dt className="font-medium text-slate-700">Coordinates</dt>
-            <dd className="text-slate-700">
-              {parcel.lat.toFixed(5)}, {parcel.lon.toFixed(5)}
-            </dd>
-            <dt className="font-medium text-slate-700">County (FIPS)</dt>
-            <dd className="text-slate-700">
-              {DEFAULT_FIPS[parcel.state] != null
-                ? `${parcel.state} — ${DEFAULT_FIPS[parcel.state]!.county}`
-                : parcel.state}
-            </dd>
             <dt className="font-medium text-slate-700">Utility rate</dt>
-            <dd className="text-slate-700">
+            <dd className="text-slate-800">
               {utilityRate != null
                 ? `$${utilityRate.toFixed(3)}/kWh`
                 : `~$${(DEFAULT_RATE_BY_STATE[parcel.state] ?? 0.12).toFixed(3)}/kWh (est.)`}
@@ -603,23 +656,27 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
             {femaZone === "loading" ? (
               <>
                 <dt className="font-medium text-slate-700">Flood zone</dt>
-                <dd className="text-slate-400 animate-pulse">Checking FEMA…</dd>
+                <dd><Skeleton w="20" h="3" /></dd>
               </>
             ) : femaZone !== null ? (
               <>
                 <dt className="font-medium text-slate-700">Flood zone</dt>
-                <dd className={femaZone.sfha ? "font-medium text-orange-700" : "text-slate-700"}>
+                <dd className={femaZone.sfha ? "font-semibold text-orange-700" : "text-slate-800"}>
                   {femaZone.label}
                 </dd>
               </>
             ) : null}
+            <dt className="font-medium text-slate-700">Coordinates</dt>
+            <dd className="text-slate-600 text-[11px]">
+              {parcel.lat.toFixed(5)}, {parcel.lon.toFixed(5)}
+            </dd>
           </dl>
         </section>
 
         {/* HOME FACTS */}
         {hasHomeFacts ? (
-          <section className="mb-3 rounded-lg border bg-white p-3">
-            <h3 className="mb-2 text-sm font-semibold text-slate-900">Home Facts</h3>
+          <section className="mb-2 rounded-xl border bg-white p-3">
+            <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Home Facts</h3>
             <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-900">
               {yearBuilt !== undefined ? (
                 <>
@@ -662,9 +719,9 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
 
         {/* AREA CONTEXT (Census) */}
         {census ? (
-          <section className="mb-3 rounded-lg border bg-white p-3">
-            <h3 className="mb-2 text-sm font-semibold text-slate-900">
-              Area Context (Census)
+          <section className="mb-2 rounded-xl border bg-white p-3">
+            <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Area (Census)
             </h3>
             <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-900">
               {census.owner_occupied_pct !== null ? (
@@ -690,10 +747,17 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
         ) : null}
 
         {/* ENERGY & SOLAR */}
-        {estimate ? (
-          <section className="mb-3 rounded-lg border bg-white p-3">
-            <div className="mb-2 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-slate-900">Energy & Solar</h3>
+        {!estimate ? (
+          <section className="mb-2 rounded-xl border bg-white p-3">
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Energy & Solar</h3>
+            <div className="space-y-1.5">
+              <Skeleton h="3" /><Skeleton w="3/4" h="3" /><Skeleton w="5/6" h="3" />
+            </div>
+          </section>
+        ) : (
+          <section className="mb-2 rounded-xl border bg-white p-3">
+            <div className="mb-1.5 flex items-center justify-between">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Energy & Solar</h3>
               {finModelIsActual && (
                 <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
                   ★ Actual bill
@@ -743,12 +807,12 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
               </dd>
             </dl>
           </section>
-        ) : null}
+        )}
 
         {/* ROOF ANALYSIS */}
         {rooftop ? (
-          <section className="mb-3 rounded-lg border bg-white p-3">
-            <h3 className="mb-2 text-sm font-semibold text-slate-900">Roof Analysis</h3>
+          <section className="mb-2 rounded-xl border bg-white p-3">
+            <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Roof Analysis</h3>
             <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-900">
               <dt className="font-medium text-slate-700">Facing</dt>
               <dd>{rooftop.south_facing ? "South-facing" : "Not south-facing"}</dd>
@@ -764,10 +828,10 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
 
         {/* FINANCIAL MODEL */}
         {finModel ? (
-          <section className="mb-3 rounded-lg border bg-amber-50 p-3">
-            <div className="mb-2 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-amber-800">Financial Model</h3>
-              <span className="text-xs text-slate-500">
+          <section className="mb-2 rounded-xl border border-amber-200 bg-amber-50 p-3">
+            <div className="mb-1.5 flex items-center justify-between">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-amber-800">Financial Model</h3>
+              <span className={`text-xs font-medium ${finModelIsActual ? "text-green-700" : "text-slate-500"}`}>
                 {finModelIsActual ? "★ Based on your bill" : "Estimated"}
               </span>
             </div>
@@ -796,8 +860,8 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
         ) : null}
 
         {/* INCENTIVES */}
-        <section className="mb-3">
-          <h3 className="mb-2 text-sm font-semibold text-slate-900">
+        <section className="mb-2">
+          <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
             Incentives ({parcel.state})
           </h3>
           <ul className="space-y-2">
@@ -843,9 +907,9 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
 
         {/* NEIGHBORHOOD PROOF */}
         {triggers ? (
-          <section className="mb-3 rounded-lg border bg-white p-3">
-            <h3 className="mb-2 text-sm font-semibold text-slate-900">
-              Neighborhood Proof (last 30d)
+          <section className="mb-2 rounded-xl border bg-white p-3">
+            <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Neighborhood (last 30d)
             </h3>
             <div className="flex gap-6 text-xs text-slate-800">
               <div>
@@ -865,7 +929,7 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
         ) : null}
 
         {/* PROPERTY NOTES */}
-        <section className="mb-3 rounded-lg border bg-white p-3">
+        <section className="mb-2 rounded-xl border bg-white p-3">
           <div className="mb-2 flex items-center justify-between">
             <h3 className="text-sm font-semibold text-slate-900">
               Notes
@@ -931,84 +995,30 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
           <div ref={notesSentinelRef} />
         </section>
 
-        {/* ACTION BUTTONS */}
-        <div className="mt-4 flex flex-col gap-2">
+        {/* bottom padding so last section clears the sticky bar */}
+        <div className="h-2" />
+        </div>{/* end scrollable body */}
 
-          {/* Capture Bill */}
-          <button
-            type="button"
-            onClick={() =>
-              navigate(
-                `/bill?parcel_id=${parcel.id}&address=${encodeURIComponent(parcel.address)}`,
-              )
-            }
-            className="w-full rounded bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700"
-          >
-            {billCapture ? "Update Bill" : "Capture Bill"}
-          </button>
+        {/* ── STICKY ACTION BAR ── */}
+        <div className="shrink-0 border-t border-slate-100 bg-white px-3 py-2">
 
-          {/* Build My Solar */}
-          <button
-            type="button"
-            onClick={() => setShowBuildMySolar(true)}
-            className="w-full rounded border border-blue-500 px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50"
-          >
-            Build My Solar
-          </button>
-
-          {/* Add / Remove from today's route */}
-          <button
-            type="button"
-            onClick={() => {
-              if (!parcel) return;
-              if (inRoute) {
-                removeFromRoute(parcel.id);
-              } else {
-                addToRoute({
-                  id: parcel.id,
-                  address: parcel.address,
-                  lat: parcel.lat,
-                  lon: parcel.lon,
-                  score: parcel.score,
-                  existing: parcel.existing,
-                });
-              }
-              setRouteTick((t) => t + 1);
-            }}
-            className={[
-              "w-full rounded border px-3 py-2 text-sm font-semibold transition-colors",
-              inRoute
-                ? "border-emerald-500 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                : "border-amber-500 bg-amber-50 text-amber-700 hover:bg-amber-100",
-            ].join(" ")}
-          >
-            {inRoute ? "✓ In today's route — tap to remove" : "+ Add to today's route"}
-          </button>
-
-          {knockDone ? (
-            <div className="rounded bg-green-50 px-3 py-2 text-center text-xs font-medium text-green-800">
-              Recorded: {OUTCOME_LABELS[knockDone]}
-            </div>
-          ) : showKnockPicker ? (
-            <div className="rounded-lg border p-3">
-              <p className="mb-2 text-xs font-semibold text-slate-800">
-                Select outcome:
-              </p>
+          {/* Knock outcome picker — expands above the bar */}
+          {showKnockPicker && (
+            <div className="mb-2 rounded-xl border bg-slate-50 p-2.5">
+              <p className="mb-2 text-xs font-semibold text-slate-700">Select outcome:</p>
               <div className="grid grid-cols-3 gap-1.5">
                 {(Object.keys(OUTCOME_LABELS) as DoorOutcome[]).map((outcome) => (
                   <button
                     key={outcome}
                     type="button"
                     onClick={() => void handleKnock(outcome)}
-                    className={`rounded px-2 py-1.5 text-xs font-medium transition-colors ${OUTCOME_COLORS[outcome]}`}
+                    className={`rounded-lg px-2 py-2 text-xs font-medium transition-colors ${OUTCOME_COLORS[outcome]}`}
                   >
                     {OUTCOME_LABELS[outcome]}
                   </button>
                 ))}
               </div>
-              {knockError ? (
-                <div className="mt-2 text-xs text-red-700">{knockError}</div>
-              ) : null}
+              {knockError && <div className="mt-1.5 text-xs text-red-700">{knockError}</div>}
               <button
                 type="button"
                 onClick={() => setShowKnockPicker(false)}
@@ -1017,47 +1027,88 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
                 Cancel
               </button>
             </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setShowKnockPicker(true)}
-              className="w-full rounded bg-amber-500 px-3 py-2 text-sm font-semibold text-white shadow hover:bg-amber-600"
-            >
-              ▶ Knock this door
-            </button>
           )}
 
-          <button
-            type="button"
-            onClick={() => {
-              const html = renderDoorcardHtml({
-                parcel_id: parcel.id,
-                address: parcel.address,
-                score: parcel.existing ? null : parcel.score,
-                est_annual_kwh: estimate?.ac_annual_kwh ?? null,
-                est_annual_savings_usd: estimate?.est_annual_savings_usd ?? null,
-                rep_name: null,
-                origin: window.location.origin,
-              });
-              const w = window.open("", "_blank");
-              if (w) {
-                w.document.open();
-                w.document.write(html);
-                w.document.close();
+          {/* Primary row: Capture Bill · Build My Solar */}
+          <div className="mb-1.5 grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() =>
+                navigate(`/bill?parcel_id=${parcel.id}&address=${encodeURIComponent(parcel.address)}`)
               }
-            }}
-            className="w-full rounded border border-amber-500 px-3 py-2 text-sm font-semibold text-amber-700 hover:bg-amber-50"
-          >
-            Open doorcard
-          </button>
+              className="rounded-xl bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700"
+            >
+              {billCapture ? "Update Bill" : "Capture Bill"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowBuildMySolar(true)}
+              className="rounded-xl border border-blue-500 px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50"
+            >
+              Build My Solar
+            </button>
+          </div>
 
-          <button
-            type="button"
-            onClick={() => setShowPitches(true)}
-            className="w-full rounded border border-slate-400 px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50"
-          >
-            Pitches
-          </button>
+          {/* Secondary row: Route · Knock · Doorcard · Pitches */}
+          <div className="grid grid-cols-4 gap-1.5">
+            <button
+              type="button"
+              onClick={() => {
+                if (!parcel) return;
+                if (inRoute) removeFromRoute(parcel.id);
+                else addToRoute({ id: parcel.id, address: parcel.address, lat: parcel.lat, lon: parcel.lon, score: parcel.score, existing: parcel.existing });
+                setRouteTick((t) => t + 1);
+              }}
+              className={[
+                "rounded-xl border py-2 text-xs font-semibold transition-colors",
+                inRoute
+                  ? "border-emerald-400 bg-emerald-50 text-emerald-700"
+                  : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50",
+              ].join(" ")}
+            >
+              {inRoute ? "✓ Route" : "+ Route"}
+            </button>
+
+            {knockDone ? (
+              <div className="col-span-1 rounded-xl bg-green-100 py-2 text-center text-xs font-medium text-green-800">
+                {OUTCOME_LABELS[knockDone]}
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowKnockPicker((s) => !s)}
+                className="rounded-xl bg-amber-500 py-2 text-xs font-semibold text-white shadow-sm hover:bg-amber-600"
+              >
+                Knock
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => {
+                const html = renderDoorcardHtml({
+                  parcel_id: parcel.id, address: parcel.address,
+                  score: parcel.existing ? null : parcel.score,
+                  est_annual_kwh: estimate?.ac_annual_kwh ?? null,
+                  est_annual_savings_usd: estimate?.est_annual_savings_usd ?? null,
+                  rep_name: null, origin: window.location.origin,
+                });
+                const w = window.open("", "_blank");
+                if (w) { w.document.open(); w.document.write(html); w.document.close(); }
+              }}
+              className="rounded-xl border border-amber-400 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-50"
+            >
+              Card
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowPitches(true)}
+              className="rounded-xl border border-slate-300 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              Pitch
+            </button>
+          </div>
         </div>
       </div>
 
