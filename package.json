@@ -22,7 +22,10 @@
     "build": "pnpm -r build",
     "dev": "pnpm --filter web dev",
     "ingest:parcels": "tsx scripts/ingest-parcels.ts",
-    "import:hoa": "tsx scripts/import-hoa.ts"
+    "import:hoa": "tsx scripts/import-hoa.ts",
+    "supabase:deploy": "pwsh ./scripts/supabase-deploy.ps1",
+    "github:secrets:set": "pwsh ./scripts/run-set-secrets.ps1",
+    "github:secrets:list": "pwsh ./scripts/github-list-secrets.ps1"
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1",
