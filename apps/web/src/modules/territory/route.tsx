@@ -210,33 +210,49 @@ export function TerritoryRoute() {
         .setLngLat([lon, lat])
         .addTo(map);
 
-      // Query parcels within ~500 m and open the nearest one.
+      // Query parcels within ~500 m and open the nearest, or open a
+      // synthetic card from the geocoded point so all lat/lon-based
+      // API sections (PVWatts, Census, weather) still render.
       const delta = 0.005;
       const pins = await fetchParcelsInBbox(
         [lon - delta, lat - delta, lon + delta, lat + delta],
         50,
       );
-      if (cancelled || pins.length === 0) return;
+      if (cancelled) return;
 
-      const nearest = pins.reduce((a, b) =>
-        (a.lat - lat) ** 2 + (a.lon - lon) ** 2 <=
-        (b.lat - lat) ** 2 + (b.lon - lon) ** 2
-          ? a
-          : b,
-      );
+      const nearest = pins.length > 0
+        ? pins.reduce((a, b) =>
+            (a.lat - lat) ** 2 + (a.lon - lon) ** 2 <=
+            (b.lat - lat) ** 2 + (b.lon - lon) ** 2
+              ? a
+              : b,
+          )
+        : null;
 
       // Open detail sheet after fly animation completes.
       setTimeout(() => {
         if (!cancelled) {
-          setSelected({
-            id: nearest.id,
-            address: nearest.address_line1,
-            state: nearest.state,
-            lat: nearest.lat,
-            lon: nearest.lon,
-            score: nearest.score ?? -1,
-            existing: nearest.has_existing_solar,
-          });
+          setSelected(
+            nearest
+              ? {
+                  id: nearest.id,
+                  address: nearest.address_line1,
+                  state: nearest.state,
+                  lat: nearest.lat,
+                  lon: nearest.lon,
+                  score: nearest.score ?? -1,
+                  existing: nearest.has_existing_solar,
+                }
+              : {
+                  id: `geo:${lat.toFixed(6)},${lon.toFixed(6)}`,
+                  address: searchParams.get("q") ?? `${lat.toFixed(5)}, ${lon.toFixed(5)}`,
+                  state: "VA",
+                  lat,
+                  lon,
+                  score: -1,
+                  existing: false,
+                },
+          );
         }
       }, 1300);
     };
