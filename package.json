@@ -25,7 +25,9 @@
     "import:hoa": "tsx scripts/import-hoa.ts",
     "supabase:deploy": "pwsh ./scripts/supabase-deploy.ps1",
     "github:secrets:set": "pwsh ./scripts/run-set-secrets.ps1",
-    "github:secrets:list": "pwsh ./scripts/github-list-secrets.ps1"
+    "github:secrets:list": "pwsh ./scripts/github-list-secrets.ps1",
+    "supabase:dispatch": "pwsh ./scripts/dispatch-supabase.ps1",
+    "supabase:watch": "pwsh ./scripts/watch-supabase-run.ps1"
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1",
