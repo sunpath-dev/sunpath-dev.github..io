@@ -162,11 +162,11 @@ Goal: no-answers convert into callbacks.
 
 Goal: dormant "no" doors become new pipeline.
 
-- **4.1 Permit scanner** — per-county adapter under `parcel-adapters/<state>/<county>-permits.ts`; daily Edge function `ingest-permits/` writes `trigger_event` rows of type `neighbor_permit` for parcels within 0.25 mi of any new solar permit.
-- **4.2 Rate-filing watcher** — Edge function `scan-rate-filings/`: scrapes state PUC dockets (start with rep's primary state), emits `rate_hike` triggers.
-- **4.3 Property-sale monitor** — re-runs parcel adapter, diffs `last_sale_date`; emits `property_sold` triggers.
-- **4.4 Callback-due cron** — emits `callback_due` triggers for door events with disposition `callback` aged past their reminder.
-- **4.5 Daily rewarm push** — morning push notification with top N triggers; in-app inbox view; dismiss/snooze.
+- **4.1 Permit scanner** — per-county adapter under `parcel-adapters/<state>/<county>-permits.ts`; daily Edge function `ingest-permits/` writes `trigger_event` rows of type `neighbor_permit` for parcels within 0.25 mi of any new solar permit. *Framework shipped in `triggers-scan-permits/`; real Scott VA PDF parser is the remaining work.*
+- **4.2 Rate-filing watcher** — Edge function `rate-watch-eia/`: pulls EIA v2 retail rate trends, emits `rate_hike` trigger when YoY > 8%. ✅ shipped.
+- **4.3 Property-sale monitor** — Edge function `triggers-property-sales/`: diffs `property_signal kind=sale` against `parcel.last_sale_date`, emits `sold` triggers. ✅ shipped.
+- **4.4 Callback-due cron** — Edge function `triggers-callback-due/` emits `callback_due` triggers for door events with disposition `callback` past their reminder. ✅ shipped.
+- **4.5 Daily rewarm push** — Edge function `rewarm-push/` finds reps with open triggers, dispatches Web Push tickle via `push-send/`. ✅ shipped.
 
 **Phase 4 deliverable:** every morning the rep gets a list of doors to revisit with reasons.
 
@@ -176,10 +176,10 @@ Goal: dormant "no" doors become new pipeline.
 
 ## Phase 5 — HOA, polish, optional native
 
-- **5.1 HOA module** — manual polygon import per market (start with rep's top 3); spatial join to parcels; red/yellow/green badge on walk list and detail sheet.
-- **5.2 Photo redaction** — auto-detect + blur account numbers on bill images (regex on OCR text → bounding-box mask) before storage.
-- **5.3 Sentry + PostHog** — wire free-tier instrumentation; PII-safe event names.
-- **5.4 Multi-rep support** — invite flow, territory assignment, shared parcel data with per-rep door events (RLS already supports this).
+- **5.1 HOA module** — manual polygon import per market (start with rep's top 3); spatial join to parcels; red/yellow/green badge on walk list and detail sheet. ✅ shipped (migration 0006: `hoa_zone` + `hoa_for_parcel`; importer `scripts/import-hoa.ts`).
+- **5.2 Photo redaction** — auto-detect + blur account numbers on bill images (regex on OCR text → bounding-box mask) before storage. ✅ shipped (Tesseract OCR + redactor in `apps/web/src/modules/bill/`).
+- **5.3 Sentry + PostHog** — wire free-tier instrumentation; PII-safe event names. ✅ shipped (lightweight DSN-based shim in `apps/web/src/lib/observability.ts`; swap to real SDKs pre-launch).
+- **5.4 Multi-rep support** — invite flow, territory assignment, shared parcel data with per-rep door events (RLS already supports this). ✅ shipped (migration 0012 + `invite-create`/`invite-accept` edge functions + UI).
 - **5.5 Capacitor native wrap** *(only on user request)* — wrap `apps/web` build into iOS + Android binaries; native ML Kit OCR replaces Tesseract.js; submit to stores.
 
 ---
