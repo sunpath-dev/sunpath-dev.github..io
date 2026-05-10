@@ -40,7 +40,7 @@ function RouteFallback() {
 }
 
 export default function App() {
-  const { session, loading } = useAuth();
+  const { session } = useAuth();
   const isCallback =
     typeof window !== "undefined" &&
     window.location.hash.startsWith("#/d/");
@@ -53,13 +53,6 @@ export default function App() {
     return startSyncEngine();
   }, [session]);
 
-  if (loading) {
-    return (
-      <div className="flex min-h-dvh items-center justify-center text-slate-500">
-        Loading…
-      </div>
-    );
-  }
   // Public callback page works with or without a session — homeowners arrive here.
   if (isCallback) {
     return (
