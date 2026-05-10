@@ -348,35 +348,35 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
         {/* HOME FACTS */}
         {hasHomeFacts ? (
           <section className="mb-3 rounded-lg border bg-white p-3">
-            <h3 className="mb-2 text-sm font-semibold text-slate-700">Home Facts</h3>
+            <h3 className="mb-2 text-sm font-semibold text-slate-900">Home Facts</h3>
             <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-600">
               {parcel.year_built !== undefined ? (
                 <>
-                  <dt className="text-slate-400">Built</dt>
+                  <dt className="text-slate-600">Built</dt>
                   <dd>{parcel.year_built}</dd>
                 </>
               ) : null}
               {parcel.sqft !== undefined ? (
                 <>
-                  <dt className="text-slate-400">Size</dt>
+                  <dt className="text-slate-600">Size</dt>
                   <dd>{parcel.sqft.toLocaleString()} sqft</dd>
                 </>
               ) : null}
               {parcel.roof_orientation !== undefined ? (
                 <>
-                  <dt className="text-slate-400">Orientation</dt>
+                  <dt className="text-slate-600">Orientation</dt>
                   <dd>{orientationLabel(parcel.roof_orientation)}</dd>
                 </>
               ) : null}
               {parcel.assessed_value_usd !== undefined ? (
                 <>
-                  <dt className="text-slate-400">Assessed</dt>
+                  <dt className="text-slate-600">Assessed</dt>
                   <dd>{fmt$(parcel.assessed_value_usd)}</dd>
                 </>
               ) : null}
               {parcel.last_sale_date !== undefined ? (
                 <>
-                  <dt className="text-slate-400">Last sold</dt>
+                  <dt className="text-slate-600">Last sold</dt>
                   <dd>
                     {parcel.last_sale_date}
                     {parcel.last_sale_price_usd !== undefined
@@ -387,12 +387,12 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
               ) : null}
               {femaZone === "loading" ? (
                 <>
-                  <dt className="text-slate-400">Flood zone</dt>
+                  <dt className="text-slate-600">Flood zone</dt>
                   <dd className="text-slate-400">Loading…</dd>
                 </>
               ) : femaZone !== null ? (
                 <>
-                  <dt className="text-slate-400">Flood zone</dt>
+                  <dt className="text-slate-600">Flood zone</dt>
                   <dd>{femaZone}</dd>
                 </>
               ) : null}
@@ -403,25 +403,25 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
         {/* AREA CONTEXT (Census) */}
         {census ? (
           <section className="mb-3 rounded-lg border bg-white p-3">
-            <h3 className="mb-2 text-sm font-semibold text-slate-700">
+            <h3 className="mb-2 text-sm font-semibold text-slate-900">
               Area Context (Census)
             </h3>
             <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-600">
               {census.owner_occupied_pct !== null ? (
                 <>
-                  <dt className="text-slate-400">Owner-occupied</dt>
+                  <dt className="text-slate-600">Owner-occupied</dt>
                   <dd>{census.owner_occupied_pct}%</dd>
                 </>
               ) : null}
               {census.median_household_income_usd !== null ? (
                 <>
-                  <dt className="text-slate-400">Median income</dt>
+                  <dt className="text-slate-600">Median income</dt>
                   <dd>{fmt$(census.median_household_income_usd)}</dd>
                 </>
               ) : null}
               {census.median_home_value_usd !== null ? (
                 <>
-                  <dt className="text-slate-400">Median home value</dt>
+                  <dt className="text-slate-600">Median home value</dt>
                   <dd>{fmt$(census.median_home_value_usd)}</dd>
                 </>
               ) : null}
@@ -432,17 +432,17 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
         {/* ENERGY & SOLAR */}
         {estimate ? (
           <section className="mb-3 rounded-lg border bg-white p-3">
-            <h3 className="mb-2 text-sm font-semibold text-slate-700">Energy & Solar</h3>
+            <h3 className="mb-2 text-sm font-semibold text-slate-900">Energy & Solar</h3>
             <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-600">
-              <dt className="text-slate-400">System modeled</dt>
+              <dt className="text-slate-600">System modeled</dt>
               <dd>{SYSTEM_KW} kW</dd>
-              <dt className="text-slate-400">Annual production</dt>
+              <dt className="text-slate-600">Annual production</dt>
               <dd>{estimate.ac_annual_kwh.toLocaleString()} kWh/yr</dd>
-              <dt className="text-slate-400">Capacity factor</dt>
+              <dt className="text-slate-600">Capacity factor</dt>
               <dd>{(estimate.capacity_factor * 100).toFixed(1)}%</dd>
               {estimate.est_annual_savings_usd !== null ? (
                 <>
-                  <dt className="text-slate-400">Est. savings/yr</dt>
+                  <dt className="text-slate-600">Est. savings/yr</dt>
                   <dd className="font-medium text-green-700">
                     {fmt$(estimate.est_annual_savings_usd)}/yr
                   </dd>
@@ -455,15 +455,15 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
         {/* ROOF ANALYSIS */}
         {rooftop ? (
           <section className="mb-3 rounded-lg border bg-white p-3">
-            <h3 className="mb-2 text-sm font-semibold text-slate-700">Roof Analysis</h3>
+            <h3 className="mb-2 text-sm font-semibold text-slate-900">Roof Analysis</h3>
             <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-600">
-              <dt className="text-slate-400">Facing</dt>
+              <dt className="text-slate-600">Facing</dt>
               <dd>{rooftop.south_facing ? "South-facing" : "Not south-facing"}</dd>
-              <dt className="text-slate-400">Viable area</dt>
+              <dt className="text-slate-600">Viable area</dt>
               <dd>{rooftop.viable_area_sqft.toLocaleString()} sqft</dd>
-              <dt className="text-slate-400">Max system</dt>
+              <dt className="text-slate-600">Max system</dt>
               <dd>{rooftop.max_kw} kW</dd>
-              <dt className="text-slate-400">Panel count</dt>
+              <dt className="text-slate-600">Panel count</dt>
               <dd>{rooftop.panel_count}</dd>
             </dl>
           </section>
@@ -505,7 +505,7 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
 
         {/* INCENTIVES */}
         <section className="mb-3">
-          <h3 className="mb-2 text-sm font-semibold text-slate-700">
+          <h3 className="mb-2 text-sm font-semibold text-slate-900">
             Incentives ({parcel.state})
           </h3>
           <ul className="space-y-2">
@@ -552,7 +552,7 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
         {/* NEIGHBORHOOD PROOF */}
         {triggers ? (
           <section className="mb-3 rounded-lg border bg-white p-3">
-            <h3 className="mb-2 text-sm font-semibold text-slate-700">
+            <h3 className="mb-2 text-sm font-semibold text-slate-900">
               Neighborhood Proof (last 30d)
             </h3>
             <div className="flex gap-6 text-xs text-slate-600">

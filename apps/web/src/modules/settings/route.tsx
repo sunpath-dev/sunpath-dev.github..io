@@ -68,7 +68,7 @@ export function SettingsRoute() {
           <div className="space-y-3">
             {SCREENS.map((s) => (
               <div key={s.name}>
-                <div className="text-xs font-semibold uppercase tracking-wide text-amber-700 mb-0.5">{s.name}</div>
+                <div className="text-xs font-semibold uppercase tracking-wide text-amber-900 mb-0.5">{s.name}</div>
                 <p className="text-sm text-slate-600 leading-relaxed">{s.desc}</p>
               </div>
             ))}
@@ -110,7 +110,7 @@ export function SettingsRoute() {
 
         {/* Account */}
         <div className="rounded-xl border bg-white shadow-sm px-4 py-3 space-y-2">
-          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Account</div>
+          <div className="text-xs font-semibold uppercase tracking-wide text-slate-600">Account</div>
           <dl className="space-y-1 text-sm">
             <div className="flex justify-between">
               <dt className="text-slate-500">Signed in as</dt>
