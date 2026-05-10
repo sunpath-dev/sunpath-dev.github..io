@@ -1,0 +1,69 @@
+// Pure transform from ParcelPin → GeoJSON for the territory map layer.
+// Lives apart from `repo.ts` so it can be unit-tested without pulling
+// the supabase client (which requires env vars).
+import type { RoofOrientation } from "@sunpath/shared";
+import { scoreParcel } from "@sunpath/shared";
+
+export interface ParcelPin {
+  id: string;
+  external_id: string;
+  address_line1: string;
+  city: string;
+  state: string;
+  postal_code: string;
+  lon: number;
+  lat: number;
+  has_existing_solar: boolean;
+  owner_occupied: boolean | null;
+  assessed_value_usd: number | null;
+  year_built: number | null;
+  primary_orientation: string | null;
+}
+
+const ORIENTATIONS: ReadonlySet<string> = new Set([
+  "N",
+  "NE",
+  "E",
+  "SE",
+  "S",
+  "SW",
+  "W",
+  "NW",
+  "unknown",
+]);
+
+function normOrientation(v: string | null): RoofOrientation | null {
+  if (!v) return null;
+  return ORIENTATIONS.has(v) ? (v as RoofOrientation) : null;
+}
+
+export function pinsToGeoJSON(pins: ParcelPin[]): GeoJSON.FeatureCollection {
+  return {
+    type: "FeatureCollection",
+    features: pins.map((p) => {
+      const result = scoreParcel({
+        ownerOccupied: p.owner_occupied,
+        estAnnualKwh: null,
+        roofOrientation: normOrientation(p.primary_orientation),
+        hasExistingSolar: p.has_existing_solar,
+        assessedValue:
+          p.assessed_value_usd !== null ? Number(p.assessed_value_usd) : null,
+        yearBuilt: p.year_built,
+        neighborPermitCount: 0,
+        recentRateHike: false,
+        recentlySold: false,
+      });
+      return {
+        type: "Feature",
+        id: p.id,
+        properties: {
+          id: p.id,
+          address: p.address_line1,
+          existing: p.has_existing_solar ? 1 : 0,
+          score: result.score ?? -1,
+        },
+        geometry: { type: "Point", coordinates: [p.lon, p.lat] },
+      };
+    }),
+  };
+}
