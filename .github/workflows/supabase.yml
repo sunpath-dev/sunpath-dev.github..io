@@ -12,6 +12,10 @@ on:
 
 jobs:
   db:
+    # Skip until the Supabase project is provisioned and the secret is set.
+    # Once the project exists, set SUPABASE_PROJECT_REF / SUPABASE_ACCESS_TOKEN /
+    # SUPABASE_DB_PASSWORD in repo secrets and this gate flips on automatically.
+    if: ${{ vars.SUPABASE_ENABLED == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

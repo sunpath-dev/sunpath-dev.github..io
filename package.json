@@ -25,6 +25,7 @@
     "import:hoa": "tsx scripts/import-hoa.ts"
   },
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
     "@sunpath/parcel-adapters": "workspace:*",
     "@sunpath/shared": "workspace:*",
     "@supabase/supabase-js": "^2.45.0",
