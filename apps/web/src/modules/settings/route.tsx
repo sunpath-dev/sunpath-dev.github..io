@@ -1,5 +1,6 @@
 import { useAuth } from "@/lib/auth.js";
 import { Button } from "@sunpath/ui";
+import { PushOptIn } from "./PushOptIn.js";
 
 export function SettingsRoute() {
   const { session, signOut } = useAuth();
@@ -20,6 +21,9 @@ export function SettingsRoute() {
           </dd>
         </div>
       </dl>
+      <div className="mt-4">
+        <PushOptIn />
+      </div>
       <div className="mt-auto pt-4">
         <Button variant="ghost" onClick={() => void signOut()}>
           Sign out
