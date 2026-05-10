@@ -3,7 +3,7 @@
 import { createClient } from '@supabase/supabase-js'
 
 const fallbackUrl = 'https://sclisaylpwnffkkyepow.supabase.co'
-const fallbackAnon = 'sb_publishable_R7RpCcyNRLgHmuLBCTrFPw_ll4C8QBv'
+const fallbackAnon = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNjbGlzYXlscHduZmZra3llcG93Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgzOTM5NDAsImV4cCI6MjA5Mzk2OTk0MH0.UauOnRMirTmgvwfp0445noEC-du0_hEXjyEQ8lHNuBY'
 
 const url = import.meta.env.VITE_SUPABASE_URL || fallbackUrl
 const anon = import.meta.env.VITE_SUPABASE_ANON_KEY || fallbackAnon
