@@ -72,7 +72,7 @@ export function WalkRoute() {
 
   const [geo, setGeo] = useState<{ lat: number; lon: number } | null>(null);
   const forecast = useWalkDayForecast(geo);
-  const [route, setRoute] = useState<RouteEntry[]>([]);
+  const [route, setRoute] = useState<RouteEntry[]>(() => getRoute());
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [recording, setRecording] = useState(false);
   const [knockedIds, setKnockedIds] = useState<Set<string>>(new Set());
@@ -83,7 +83,6 @@ export function WalkRoute() {
   }, []);
 
   useEffect(() => {
-    refreshRoute();
     window.addEventListener("focus", refreshRoute);
     return () => window.removeEventListener("focus", refreshRoute);
   }, [refreshRoute]);

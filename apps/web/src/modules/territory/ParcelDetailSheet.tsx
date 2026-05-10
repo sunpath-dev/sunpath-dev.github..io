@@ -198,13 +198,10 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
   const [showPitches, setShowPitches] = useState(false);
   const [knockDone, setKnockDone] = useState<DoorOutcome | null>(null);
   const [knockError, setKnockError] = useState<string | null>(null);
-  const [inRoute, setInRoute] = useState(false);
-
-  // Sync inRoute with localStorage whenever parcel changes.
-  useEffect(() => {
-    if (!parcel) return;
-    setInRoute(isInRoute(parcel.id));
-  }, [parcel]);
+  // Derived from localStorage; routeTick forces a re-read after button clicks.
+  const [routeTick, setRouteTick] = useState(0);
+  const inRoute = parcel ? isInRoute(parcel.id) : false;
+  void routeTick; // consumed only to trigger re-render
 
   useEffect(() => {
     if (!parcel) return;
@@ -966,7 +963,6 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
               if (!parcel) return;
               if (inRoute) {
                 removeFromRoute(parcel.id);
-                setInRoute(false);
               } else {
                 addToRoute({
                   id: parcel.id,
@@ -976,8 +972,8 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
                   score: parcel.score,
                   existing: parcel.existing,
                 });
-                setInRoute(true);
               }
+              setRouteTick((t) => t + 1);
             }}
             className={[
               "w-full rounded border px-3 py-2 text-sm font-semibold transition-colors",

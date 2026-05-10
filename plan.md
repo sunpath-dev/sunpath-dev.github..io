@@ -763,6 +763,63 @@ This phase has no hard dependency on Phase 6 being 100% complete — individual 
 
 ---
 
+## Phase 8 — Cross-Device Profile & Data Portability
+
+### 8-A — Cross-device session state (after auth is live)
+
+Goal: a rep logs in on their iPhone in the morning, does a full day of knocking, then opens the app on an iPad or laptop and sees everything without re-entering anything.
+
+**What this requires:**
+- All writes (door events, leads, notes, bill captures) sync to Supabase via the outbox engine (already in place).
+- Auth session token stored in device keychain / SecureStorage (Supabase Auth handles this natively on iOS Safari via cookie/localStorage).
+- On login from a new device: the app fetches the rep's door events, leads, notes, and bill captures from Supabase on first load — no manual import.
+- Route (today's walk list) is stored in Supabase `rep_session` table (new, migration 0024) keyed to `rep_id + date`, not just localStorage, so it persists across devices.
+- Territory filters (county, score threshold) saved to `rep_profile` preferences column (JSON blob).
+
+**Rep profile screen additions:**
+- Display name, avatar initial, territory home (county/state)
+- Device list: "Last seen: iPhone, 2h ago" (from Supabase Auth session metadata)
+- Preferred score threshold, default EIA state for rate lookups
+
+**Implementation notes:**
+- `rep_profile` table: `rep_id uuid PK, display_name text, territory_state text, territory_county text, preferences jsonb, updated_at timestamptz`
+- `rep_daily_route` table: `rep_id, date date, route_json jsonb, updated_at` — replaces localStorage-only walk list
+- Walk list load order: Supabase first (authoritative), localStorage as offline fallback, merge on conflict by `updated_at`
+- This replaces the POC one-tap entry once real auth is live
+
+*Acceptance: a rep can start a session on phone, add 3 doors and a note, then see all 3 doors and the note on a laptop without any manual step.*
+
+---
+
+### 8-B — Data export
+
+Goal: rep can get their data out in formats usable in other tools — Excel for a manager, JSON for a CRM sync, SQL for a technical user.
+
+**Export surfaces:**
+- **Reports module (Phase 6-I)**: "Export this report" → PDF, CSV, or plain text
+- **Settings → My Data**: full export of everything the rep has collected
+- **Individual parcel**: export property summary card as PDF (leave-behind / proposal format)
+
+**Export formats:**
+| Format | Content | Use case |
+|--------|---------|----------|
+| CSV / Excel | Door events, leads, notes (one row each) | Manager review, pipeline tracking |
+| JSON | All data, structured by parcel | CRM import, API integration |
+| PDF | Daily/weekly report, single property proposal | Leave-behind, manager briefing |
+| SQL dump | Schema + data inserts | Developer handoff, backup |
+
+**Implementation:**
+- CSV/Excel: `xlsx` package (client-side, no server needed), generates `.xlsx` directly in browser
+- JSON: `JSON.stringify` + `Blob` download, structured as `{ parcels: [...], doorEvents: [...], leads: [...], notes: [...] }`
+- PDF: jsPDF (already planned for 2.5 savings card) reused for report export
+- SQL: server-side Supabase Edge Function `export-data` — rep sends auth token, function queries their rows and returns a `.sql` dump
+- All exports scoped to `rep_id = auth.uid()` — never export another rep's data
+- Privacy: no PII (customer names etc.) — only address-linked data and rep's own activity
+
+*Acceptance: rep taps "Export my data" in Settings, selects format, downloads a file they can open in Excel/Google Sheets.*
+
+---
+
 ## Phase 2 — Walk & Capture
 
 Goal: rep stops carrying a clipboard.

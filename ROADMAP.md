@@ -104,36 +104,46 @@ Once Phase 6 is complete and there's 4+ weeks of rep data, these AI features act
 
 ---
 
-## Planned — Phase 8: Today Dashboard & Calendar
+## Planned — Phase 8: Cross-Device Profile & Data Export
 
 | Item | Description |
 |------|-------------|
-| 8-A | Territory context auto-detect from GPS — "Scott County, VA" label follows the rep's location |
-| 8-B | Quick-switch territory picker — manually change county context without GPS |
-| 8-C | Google Calendar / Outlook integration (read-only OAuth) — show calendar blocks, surface free walk windows |
-| 8-D | Walk window planner — "You have 2h 45m before pickup at 5:45 — here's a 14-door cluster nearby" |
+| 8-A | **Cross-device session state** — log in on phone, pick up on iPad or laptop with all data intact. Door events, notes, leads, and today's walk list follow you across devices via Supabase sync. |
+| 8-B | **Rep profile** — display name, territory home, device list ("last seen: iPhone, 2h ago"), score threshold preference |
+| 8-C | **Data export** — CSV/Excel for your pipeline, JSON for CRM import, PDF report, or full SQL dump. Export only your own data; no PII leaves the app. |
 
 ---
 
-## Planned — Phase 9: Build My Solar (visual pitch tool)
+## Planned — Phase 9: Today Dashboard & Calendar
 
 | Item | Description |
 |------|-------------|
-| 9-A | Google Solar API integration — per-roof segments, exact viable area, pitch, annual sun exposure |
-| 9-B | Satellite aerial overlay — panel layout shown on the actual roof image |
-| 9-C | System summary card — panel count, kW, projected annual kWh, monthly savings |
-| 9-D | On-porch sharing — one tap to share the visualization with the homeowner |
+| 9-A | Territory context auto-detect from GPS — "Scott County, VA" label follows the rep's location |
+| 9-B | Quick-switch territory picker — manually change county context without GPS |
+| 9-C | Google Calendar / Outlook integration (read-only OAuth) — show calendar blocks, surface free walk windows |
+| 9-D | Walk window planner — "You have 2h 45m before pickup at 5:45 — here's a 14-door cluster nearby" |
 
 ---
 
-## Planned — Phase 10: Deeper parcel coverage
+## Planned — Phase 10: Build My Solar (visual pitch tool)
 
 | Item | Description |
 |------|-------------|
-| 10-A | Full Scott County VA parcel ingest (VGIN ArcGIS REST adapter — built, needs run) |
-| 10-B | Russell County VA adapter |
-| 10-C | Scott County permit PDF parser (currently blocked — county publishes PDF only) |
-| 10-D | Expand to surrounding SW Virginia counties |
+| 10-A | Google Solar API integration — per-roof segments, exact viable area, pitch, annual sun exposure |
+| 10-B | Satellite aerial overlay — panel layout shown on the actual roof image |
+| 10-C | System summary card — panel count, kW, projected annual kWh, monthly savings |
+| 10-D | On-porch sharing — one tap to share the visualization with the homeowner |
+
+---
+
+## Planned — Phase 11: Deeper parcel coverage
+
+| Item | Description |
+|------|-------------|
+| 11-A | Full Scott County VA parcel ingest (VGIN ArcGIS REST adapter — built, needs run) |
+| 11-B | Russell County VA adapter |
+| 11-C | Scott County permit PDF parser (currently blocked — county publishes PDF only) |
+| 11-D | Expand to surrounding SW Virginia counties |
 
 ---
 
