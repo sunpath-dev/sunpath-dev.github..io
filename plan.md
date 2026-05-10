@@ -206,10 +206,10 @@ Goal: dormant "no" doors become new pipeline.
 
 Goal: rep checks the day before "should I knock tomorrow, and where?" and gets a forecast-aware view of his planned walk.
 
-- **Data source: NOAA NWS API** (`api.weather.gov`). Free, no key, no rate-limit fees, official US Gov data. Requires a polite `User-Agent` header. Returns hourly + 7-day forecasts plus active alerts (severe thunderstorms, heat advisories, etc.). *Per research May 2026: this is the right primary source — the design doc's OpenWeather suggestion is now a paid product (One Call 3.0 requires a credit-card-backed subscription).*
+- **Data source: NOAA NWS API** (`api.weather.gov`). Free, no key, no rate-limit fees, official US Gov data. Requires a polite `User-Agent` header. Returns hourly + 7-day forecasts plus active alerts (severe thunderstorms, heat advisories, etc.). *Per research May 2026: this is the right primary source — the design doc's OpenWeather suggestion is now a paid product (One Call 3.0 requires a credit-card-backed subscription).* ✅ shipped (`forecast-fetch/` edge fn).
 - **Data source (fallback): OpenWeather One Call 3.0** for non-US edge cases or when NWS is down. Requires `VITE_OPENWEATHER_API_KEY`; first 1,000 calls/day free under the One Call by Call plan.
-- Edge function `forecast-fetch/`: hourly cron pulls forecast for each rep's territory centroid; cached 1 hour.
-- UI: walk-list header shows forecast strip — temp, precip %, wind, UV, sunrise/sunset, NWS alerts. Color cues for "great walk weather" / "marginal" / "stay home."
+- Edge function `forecast-fetch/`: hourly cron pulls forecast for each rep's territory centroid; cached 1 hour. ✅ shipped.
+- UI: walk-list header shows forecast strip — temp, precip %, wind, UV, sunrise/sunset, NWS alerts. Color cues for "great walk weather" / "marginal" / "stay home." ✅ shipped (`apps/web/src/modules/walk/useWalkDayForecast.ts`).
 - Walk-list sort option: rank by *expected daylight remaining*, downrank parcels with active severe-weather alerts in the area.
 - Daily push (~7am): tomorrow's outlook + suggested time window (e.g. "best between 4–7pm — clear, 72°F, sunset 8:14").
 
@@ -232,7 +232,7 @@ Goal: rep checks the day before "should I knock tomorrow, and where?" and gets a
 **Data protection**
 - Encrypt sensitive columns at rest (`bill_capture.image_url` storage objects, `lead.phone`, `lead.email`, `lead.contact_name`) using `pgsodium` or column-level encryption in Postgres.
 - Auto-redact account numbers from bill images **before** they hit storage (already planned as Phase 5.2 — promote to mandatory). ✅ shipped (Tesseract OCR + redactor).
-- Storage bucket policies: signed URLs only, short TTL, no public reads.
+- Storage bucket policies: signed URLs only, short TTL, no public reads. ✅ shipped (migration 0018: `bill_capture` bucket private + per-rep RLS on `storage.objects`).
 - PII retention policy: define how long door notes, voice memos, photos, and bill images live; implement a scheduled purge function. ✅ shipped (migration 0016: `pii_retention_policy` + `purge_expired_pii()` + daily cron + `erase_homeowner_pii()` for GDPR/CCPA).
 - Audit log table: every read/write of PII captured with rep_id + timestamp + IP. ✅ shipped (migration 0013: `audit_log` + `record_audit()`).
 
@@ -245,7 +245,7 @@ Goal: rep checks the day before "should I knock tomorrow, and where?" and gets a
 **Compliance**
 - **TCPA** review before any SMS/auto-call functionality (design §10 already flags this).
 - **State DNC list** integration if outbound calling/SMS is added.
-- **GDPR/CCPA-style** data export + delete endpoints per rep and per homeowner contact. 🟡 partial (`erase_homeowner_pii()` shipped in 0016; export endpoint TBD).
+- **GDPR/CCPA-style** data export + delete endpoints per rep and per homeowner contact. ✅ shipped (`erase_homeowner_pii()` in 0016; `export_homeowner_pii()` in 0017 + `homeowner-export/` edge fn behind `HOMEOWNER_EXPORT_TOKEN`).
 - **Solar industry**: review state-specific rules on door-to-door sales (cooling-off periods, required disclosures).
 - **Terms of Service + Privacy Policy** drafted and accepted at signup.
 - **Data Processing Agreement** with Supabase if storing PII for users beyond the original rep.
