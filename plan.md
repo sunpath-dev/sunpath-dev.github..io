@@ -4,7 +4,7 @@ Source of truth: the design doc (v1.3) the user provided. All decisions and spec
 
 ## Context locked in
 - **Single repo** for everything: `sunpath-dev/sunpath-dev.github.io` (this workspace folder). The multi-repo org structure in design §9 is collapsed into this one repo.
-- **Nothing exists yet** on GitHub or Supabase — clean start. No org-level `.github`, no profile repo, no Supabase project, no DNS, no API keys.
+- **Current infra state:** the Supabase project now exists (`sunpath-dev`, region `us-east-1`, ref `sclisaylpwnffkkyepow`, URL `https://sclisaylpwnffkkyepow.supabase.co`). GitHub Pages/DNS/secrets wiring still requires verification. Secrets and credentials are intentionally **not** recorded in this repo.
 - **Scope:** every phase (0 through 5) — but plan is organized so phases ship independently.
 - **Hosting model:** this repo is the GitHub Pages user/org site → published at `https://sunpath-dev.github.io/` → CNAME `sunpath.dev`. Apex site, not a project page. That means `base: '/'` in Vite is correct and simplifies routing vs. project Pages.
 - **POC posture (current).** Everything in Phases 0–5 is a proof of concept. Data protection is intentionally minimal beyond Supabase RLS + HTTPS + standard auth — *no* full security hardening, *no* compliance work, *no* production data-handling guarantees. **Before a real production release** (paying users or a wider rep team) the items in the new "Production hardening (pre-launch)" section must be completed.
@@ -71,7 +71,10 @@ Goal: rep can install the PWA on his phone, log in, and see a MapLibre map of hi
 - `.env.local` template (gitignored) + `.env.example` checked in per §12.7.
 
 **0.4 — Supabase project** *(parallel with 0.3, blocks 0.6)*
-- Create free-tier project; capture URL, anon key, service role key, DB password, project ref, access token.
+- Project created: `sunpath-dev` in `us-east-1`.
+- Recorded non-secret identifiers: project ref `sclisaylpwnffkkyepow`, URL `https://sclisaylpwnffkkyepow.supabase.co`.
+- Keep secrets out of git: anon key, service-role key, DB password, and access token belong in GitHub Actions secrets / Supabase project settings, not this repo.
+- Remote schema still needs verification/application: a REST probe on 2026-05-10 returned `404 Not Found` for `parcel`, `rep`, `door_event`, `lead`, and `trigger_event`, so do **not** assume migrations have run yet.
 - `pnpm dlx supabase init`, link to project.
 - Commit `supabase/migrations/0001_init.sql` verbatim from design §12.8 (parcel/property_signal/area_signal/door_event/lead/bill_capture/quote/trigger_event/incentive/rep/commission_event + RLS + `set_updated_at` trigger).
 - `supabase db push` to apply.

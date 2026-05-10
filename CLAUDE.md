@@ -8,6 +8,15 @@ Sunpath is a mobile-first PWA for door-to-door solar reps. Single-repo monorepo,
 
 The full plan (phases 0-5, deferred items, public data sources, scoring) is in [plan.md](plan.md). The full design spec (v1.3, paste verbatim) is in [docs/DESIGN.md](docs/DESIGN.md).
 
+## Current infra status
+
+- Supabase project exists: `sunpath-dev`
+- Region: `us-east-1`
+- Project ref: `sclisaylpwnffkkyepow`
+- Project URL: `https://sclisaylpwnffkkyepow.supabase.co`
+- Do not commit secrets. The anon key, service-role key, DB password, and access token stay in GitHub Actions secrets or Supabase project settings.
+- Do not assume GitHub integration already applied migrations. As of 2026-05-10, REST probes for `parcel`, `rep`, `door_event`, `lead`, and `trigger_event` still returned `404`, which means the remote schema was not yet verified as present.
+
 ## Stack at a glance
 
 - **Monorepo:** pnpm workspaces, Node 20 (`.nvmrc`), TypeScript 5.5 strict (`noUncheckedIndexedAccess: true`)

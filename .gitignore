@@ -20,6 +20,7 @@ dev-dist/
 .env.local
 .env.*.local
 !.env.example
+.secrets.local
 
 # Supabase
 supabase/.branches/
