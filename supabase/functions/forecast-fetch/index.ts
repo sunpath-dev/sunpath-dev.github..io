@@ -12,6 +12,13 @@
 const NWS_BASE = "https://api.weather.gov";
 const USER_AGENT = "(sunpath.dev, hello@sunpath.dev)";
 
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
 interface RequestBody {
   lon: number;
   lat: number;
@@ -45,14 +52,17 @@ function deriveWalkability(period: any): number {
 }
 
 Deno.serve(async (req: Request) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: CORS_HEADERS });
+  }
   if (req.method !== "POST") {
-    return new Response("POST only", { status: 405 });
+    return new Response("POST only", { status: 405, headers: CORS_HEADERS });
   }
   let body: RequestBody;
   try {
     body = await req.json();
   } catch {
-    return new Response("invalid JSON", { status: 400 });
+    return new Response("invalid JSON", { status: 400, headers: CORS_HEADERS });
   }
   const { lon, lat } = body;
   if (
@@ -61,7 +71,10 @@ Deno.serve(async (req: Request) => {
     Math.abs(lon) > 180 ||
     Math.abs(lat) > 90
   ) {
-    return new Response("invalid lon/lat", { status: 400 });
+    return new Response("invalid lon/lat", {
+      status: 400,
+      headers: CORS_HEADERS,
+    });
   }
 
   try {
@@ -101,12 +114,15 @@ Deno.serve(async (req: Request) => {
     };
 
     return new Response(JSON.stringify(out), {
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...CORS_HEADERS },
     });
   } catch (e) {
     return new Response(
       JSON.stringify({ error: (e as Error).message }),
-      { status: 502, headers: { "Content-Type": "application/json" } },
+      {
+        status: 502,
+        headers: { "Content-Type": "application/json", ...CORS_HEADERS },
+      },
     );
   }
 });

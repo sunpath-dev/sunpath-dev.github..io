@@ -44,8 +44,8 @@ export const WalkDayWeatherSchema = z.object({
   low_f: z.number(),
   precip_chance_pct: z.number().min(0).max(100),
   wind_mph_max: z.number().nonnegative(),
-  sunrise: z.string().datetime(),
-  sunset: z.string().datetime(),
+  sunrise: z.string().datetime().optional(),
+  sunset: z.string().datetime().optional(),
   short_forecast: z.string(),
   alerts: z.array(
     z.object({

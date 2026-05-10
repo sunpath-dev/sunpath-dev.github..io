@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@sunpath/ui";
 import { useAuth } from "@/lib/auth.js";
 import { recordDoorEvent, useRecentEvents, useUnsyncedCount } from "./repo.js";
+import { useWalkDayForecast } from "./useWalkDayForecast.js";
 
 /**
  * Walk view — the active door-knock surface. Rep taps an outcome per door.
@@ -27,6 +28,7 @@ export function WalkRoute() {
   const unsynced = useUnsyncedCount();
   const [geo, setGeo] = useState<{ lat: number; lon: number } | null>(null);
   const [recording, setRecording] = useState(false);
+  const forecast = useWalkDayForecast(geo);
 
   useEffect(() => {
     if (!navigator.geolocation) return;
@@ -74,6 +76,31 @@ export function WalkRoute() {
           ? `Location: ${geo.lat.toFixed(5)}, ${geo.lon.toFixed(5)}`
           : "Locating…"}
       </div>
+
+      {forecast.data ? (
+        <div className="mb-3 rounded-lg border bg-white p-3 text-sm shadow-sm">
+          <div className="flex items-baseline justify-between">
+            <span className="font-medium">{forecast.data.short_forecast}</span>
+            <span className="text-xs text-slate-500">
+              walkability {forecast.data.walkability}
+            </span>
+          </div>
+          <div className="text-xs text-slate-600">
+            High {forecast.data.high_f}° · Low {forecast.data.low_f}° · Precip{" "}
+            {forecast.data.precip_chance_pct}% · Wind{" "}
+            {forecast.data.wind_mph_max} mph
+          </div>
+          {forecast.data.alerts.length > 0 ? (
+            <div className="mt-1 text-xs font-medium text-red-700">
+              ⚠ {forecast.data.alerts[0]?.event}
+            </div>
+          ) : null}
+        </div>
+      ) : forecast.loading ? (
+        <div className="mb-3 rounded-lg border bg-white p-3 text-xs text-slate-500 shadow-sm">
+          Loading forecast…
+        </div>
+      ) : null}
 
       <div className="flex-1 overflow-y-auto rounded-lg border bg-white shadow-sm">
         {events && events.length > 0 ? (
