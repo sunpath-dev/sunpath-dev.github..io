@@ -19,6 +19,13 @@
     "typecheck": "pnpm -r --parallel exec tsc --noEmit",
     "test": "pnpm -r test --if-present",
     "build": "pnpm -r build",
-    "dev": "pnpm --filter web dev"
+    "dev": "pnpm --filter web dev",
+    "ingest:parcels": "tsx scripts/ingest-parcels.ts"
+  },
+  "devDependencies": {
+    "@sunpath/parcel-adapters": "workspace:*",
+    "@sunpath/shared": "workspace:*",
+    "@supabase/supabase-js": "^2.45.0",
+    "tsx": "^4.19.0"
   }
 }
