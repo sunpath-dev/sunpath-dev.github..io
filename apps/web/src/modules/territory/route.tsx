@@ -196,30 +196,66 @@ export function TerritoryRoute() {
     };
   }, []);
 
-  // Fly to geocoded address when ?lat=&lon= params are present.
+  // Fly to geocoded address, then open the nearest parcel detail sheet.
   useEffect(() => {
     const lat = parseFloat(searchParams.get("lat") ?? "");
     const lon = parseFloat(searchParams.get("lon") ?? "");
     if (!isFinite(lat) || !isFinite(lon)) return;
-    const map = mapRef.current;
-    if (map) {
+
+    let cancelled = false;
+
+    const flyAndOpen = async (map: MlMap) => {
       map.flyTo({ center: [lon, lat], zoom: 15, duration: 1200 });
       new maplibregl.Marker({ color: "#f59e0b" })
         .setLngLat([lon, lat])
         .addTo(map);
-    } else {
-      // Map not ready yet — store for after-load
-      const onLoad = () => {
-        mapRef.current?.flyTo({ center: [lon, lat], zoom: 15, duration: 800 });
-        if (mapRef.current) {
-          new maplibregl.Marker({ color: "#f59e0b" })
-            .setLngLat([lon, lat])
-            .addTo(mapRef.current);
+
+      // Query parcels within ~500 m and open the nearest one.
+      const delta = 0.005;
+      const pins = await fetchParcelsInBbox(
+        [lon - delta, lat - delta, lon + delta, lat + delta],
+        50,
+      );
+      if (cancelled || pins.length === 0) return;
+
+      const nearest = pins.reduce((a, b) =>
+        (a.lat - lat) ** 2 + (a.lon - lon) ** 2 <=
+        (b.lat - lat) ** 2 + (b.lon - lon) ** 2
+          ? a
+          : b,
+      );
+
+      // Open detail sheet after fly animation completes.
+      setTimeout(() => {
+        if (!cancelled) {
+          setSelected({
+            id: nearest.id,
+            address: nearest.address_line1,
+            state: nearest.state,
+            lat: nearest.lat,
+            lon: nearest.lon,
+            score: nearest.score ?? -1,
+            existing: nearest.has_existing_solar,
+          });
         }
+      }, 1300);
+    };
+
+    const map = mapRef.current;
+    if (map) {
+      void flyAndOpen(map);
+    } else {
+      const onLoad = () => {
+        if (mapRef.current) void flyAndOpen(mapRef.current);
       };
       window.addEventListener("maplibre-ready", onLoad, { once: true });
-      return () => window.removeEventListener("maplibre-ready", onLoad);
+      return () => {
+        cancelled = true;
+        window.removeEventListener("maplibre-ready", onLoad);
+      };
     }
+
+    return () => { cancelled = true; };
   }, [searchParams]);
 
   useEffect(() => {
