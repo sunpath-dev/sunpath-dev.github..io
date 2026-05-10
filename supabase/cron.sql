@@ -127,4 +127,18 @@ select cron.schedule(
   $$select public.invoke_edge_function('ingest-area-signals');$$
 );
 
+-- Daily 06:00 UTC: PII retention purge (per pii_retention_policy)
+select cron.schedule(
+  'sunpath_pii_purge',
+  '0 6 * * *',
+  $$select public.purge_expired_pii();$$
+);
+
+-- Weekly Sun 06:30 UTC: rate-limit bucket GC
+select cron.schedule(
+  'sunpath_rate_limit_gc',
+  '30 6 * * 0',
+  $$select public.rate_limit_gc('7 days'::interval);$$
+);
+
 -- Inspect with: select jobname, schedule, command from cron.job where jobname like 'sunpath_%';

@@ -71,6 +71,37 @@ Deno.serve(async (req: Request) => {
     Prefer: "return=representation",
   };
 
+  // Per-IP rate limit: 10 submissions / hour. Public form, must defend
+  // against floods. Falls open if the RPC is unreachable so a DB hiccup
+  // doesn't block legitimate leads.
+  const ip =
+    req.headers.get("cf-connecting-ip") ??
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    "unknown";
+  try {
+    const rlRes = await fetch(`${url}/rest/v1/rpc/rate_limit_check`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        p_scope: "callback_submit",
+        p_key: ip,
+        p_limit: 10,
+        p_window: "1 hour",
+      }),
+    });
+    if (rlRes.ok) {
+      const allowed = (await rlRes.json()) as boolean;
+      if (allowed === false) {
+        return Response.json(
+          { error: "rate limited" },
+          { status: 429, headers: CORS_HEADERS },
+        );
+      }
+    }
+  } catch {
+    // fail-open
+  }
+
   // Resolve parcel from slug, if any.
   let parcelId: string | null = null;
   if (body.slug && /^[0-9a-f]{4,32}$/i.test(body.slug)) {
