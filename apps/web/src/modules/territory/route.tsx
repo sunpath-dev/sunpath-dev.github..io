@@ -77,7 +77,16 @@ export function TerritoryRoute() {
             "case",
             ["==", ["get", "existing"], 1],
             "#94a3b8", // existing solar — muted slate
-            "#f59e0b", // sun-500
+            [
+              "interpolate",
+              ["linear"],
+              ["get", "score"],
+              0, "#fef3c7",   // amber-100  (cold lead)
+              40, "#fcd34d",  // amber-300
+              60, "#f59e0b",  // sun-500    (warm)
+              80, "#ea580c",  // orange-600 (hot)
+              100, "#b91c1c", // red-700    (top tier)
+            ],
           ],
           "circle-stroke-color": "#0f172a",
           "circle-stroke-width": 0.5,
@@ -138,6 +147,16 @@ export function TerritoryRoute() {
         <p className="text-sm text-slate-600">
           Gate City, VA — Scott County. Pan/zoom to load parcels.
         </p>
+        <div className="mt-2 flex items-center gap-2 text-[11px] text-slate-500">
+          <span className="inline-block h-2 w-2 rounded-full bg-amber-200" />
+          <span>cold</span>
+          <span className="inline-block h-2 w-2 rounded-full bg-amber-400" />
+          <span className="inline-block h-2 w-2 rounded-full bg-orange-500" />
+          <span className="inline-block h-2 w-2 rounded-full bg-red-700" />
+          <span>hot</span>
+          <span className="ml-3 inline-block h-2 w-2 rounded-full bg-slate-400" />
+          <span>existing solar</span>
+        </div>
       </header>
       <div ref={containerRef} className="flex-1" />
     </div>
