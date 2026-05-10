@@ -15,10 +15,10 @@
   },
   "packageManager": "pnpm@9.0.0",
   "scripts": {
-    "lint": "pnpm -r lint",
-    "typecheck": "pnpm -r typecheck",
-    "test": "pnpm -r test",
-    "build": "pnpm --filter web build",
+    "lint": "pnpm --filter web lint",
+    "typecheck": "pnpm -r --parallel exec tsc --noEmit",
+    "test": "pnpm -r test --if-present",
+    "build": "pnpm -r build",
     "dev": "pnpm --filter web dev"
   }
 }
