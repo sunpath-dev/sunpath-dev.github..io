@@ -13,6 +13,9 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'icons/*.png'],
+      // Serve the manifest in `vite dev` too so e2e/PWA smoke tests pass
+      // without needing a full production build.
+      devOptions: { enabled: true, type: 'module' },
       manifest: {
         name: 'Sunpath',
         short_name: 'Sunpath',

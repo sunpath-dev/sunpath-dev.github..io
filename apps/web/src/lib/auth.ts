@@ -18,6 +18,20 @@ function emit() {
 }
 
 async function init() {
+  // If Supabase env is missing (e.g. CI without secrets), short-circuit
+  // so the UI renders the sign-in screen instead of an infinite spinner.
+  const hasEnv =
+    !!import.meta.env.VITE_SUPABASE_URL && !!import.meta.env.VITE_SUPABASE_ANON_KEY;
+  if (!hasEnv) {
+    cached = {
+      session: null,
+      loading: false,
+      signInWithMagicLink: async () => ({ error: 'Supabase not configured' }),
+      signOut: async () => {},
+    };
+    emit();
+    return;
+  }
   const { data } = await supabase.auth.getSession();
   cached = {
     session: data.session,
