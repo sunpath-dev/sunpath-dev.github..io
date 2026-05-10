@@ -4,7 +4,7 @@
 // converts to text — the parser side here is pure). A later phase wires
 // Tesseract.js for in-browser OCR; the parser contract is identical.
 import { useMemo, useState } from "react";
-import { parseBillText, type BillFields } from "@sunpath/shared";
+import { parseBillText, redactBillText, type BillFields } from "@sunpath/shared";
 import { db } from "@/lib/db.js";
 import { kickSync } from "@/lib/sync.js";
 import { useAuth } from "@/lib/auth.js";
@@ -39,7 +39,10 @@ export function BillCaptureRoute() {
           if (typeof m.progress === "number") setOcrProgress(m.progress);
         },
       });
-      const t = result.data.text ?? "";
+      // Redact PII (acct numbers, SSN, cards, emails) at the OCR boundary so
+      // we never persist them locally or ship them to Storage. The parser
+      // only needs kWh/dollar/date numerics, which the redactor preserves.
+      const t = redactBillText(result.data.text ?? "");
       setText((prev) => (prev ? prev + "\n\n" + t : t));
       setOcrState("done");
     } catch (err) {
@@ -115,6 +118,7 @@ export function BillCaptureRoute() {
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
+          onBlur={(e) => setText(redactBillText(e.target.value))}
           rows={10}
           placeholder="Paste OCR'd or copy-pasted bill text here…"
           className="w-full rounded-lg border bg-white p-3 font-mono text-xs shadow-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"

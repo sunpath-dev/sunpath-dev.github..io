@@ -23,7 +23,7 @@ export interface DbDoorEvent {
 
 export interface DbLead {
   id: string; // server UUID once synced; client-generated otherwise
-  parcel_id: string;
+  parcel_id?: string | null;
   rep_id: string;
   stage: string;
   contact_name?: string;

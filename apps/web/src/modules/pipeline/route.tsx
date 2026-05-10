@@ -1,4 +1,5 @@
 import { STAGES, moveLeadStage, useLeadsByStage, type Stage } from "./repo.js";
+import { TriggersInbox } from "./TriggersInbox.js";
 
 /**
  * Pipeline view — kanban of leads by stage. Reads live from Dexie.
@@ -21,6 +22,7 @@ export function PipelineRoute() {
         <h1 className="text-2xl font-bold">Pipeline</h1>
         <p className="text-sm text-slate-600">Leads by stage.</p>
       </header>
+      <TriggersInbox />
       <div className="flex-1 overflow-x-auto">
         <div className="flex h-full gap-3">
           {STAGES.map((stage, stageIdx) => {
@@ -51,7 +53,7 @@ export function PipelineRoute() {
                           {l.contact_name ?? "(no name)"}
                         </div>
                         <div className="text-slate-500">
-                          {l.phone ?? l.email ?? l.parcel_id.slice(0, 8)}
+                          {l.phone ?? l.email ?? l.parcel_id?.slice(0, 8) ?? "(no parcel)"}
                         </div>
                         <div className="mt-1 flex items-center justify-between">
                           <button
