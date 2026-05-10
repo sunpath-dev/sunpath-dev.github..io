@@ -74,6 +74,8 @@ export function pinsToGeoJSON(pins: ParcelPin[]): GeoJSON.FeatureCollection {
         properties: {
           id: p.id,
           address: p.address_line1,
+          city: p.city,
+          state: p.state,
           existing: p.has_existing_solar ? 1 : 0,
           score: score ?? -1,
           owner_occ: p.owner_occupied === true ? 1 : 0,

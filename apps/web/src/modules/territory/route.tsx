@@ -107,13 +107,13 @@ export function TerritoryRoute() {
       zoom: DEFAULT_ZOOM,
       attributionControl: { compact: true },
     });
-    map.addControl(new maplibregl.NavigationControl({ visualizePitch: false }), "top-right");
+    map.addControl(new maplibregl.NavigationControl({ visualizePitch: false }), "bottom-right");
     map.addControl(
       new maplibregl.GeolocateControl({
         positionOptions: { enableHighAccuracy: true },
         trackUserLocation: true,
       }),
-      "top-right",
+      "bottom-right",
     );
 
     map.on("load", () => {
@@ -203,17 +203,20 @@ export function TerritoryRoute() {
       const f = ev.features?.[0];
       if (!f) return;
       const props = f.properties as
-        | { id?: string; address?: string; score?: number; existing?: number }
+        | { id?: string; address?: string; city?: string; state?: string; score?: number; existing?: number }
         | undefined;
       const coords = (f.geometry as GeoJSON.Point).coordinates as [
         number,
         number,
       ];
+      const street = props?.address ?? "";
+      const city = props?.city ?? "";
+      const state = props?.state ?? "VA";
+      const fullAddress = [street, city, state].filter(Boolean).join(", ");
       setSelected({
         id: props?.id ?? "",
-        address: props?.address ?? "(unknown address)",
-        // Hardcoded VA for now; expansion to TN/etc. wires this from the row.
-        state: "VA",
+        address: fullAddress || "(unknown address)",
+        state,
         lat: coords[1],
         lon: coords[0],
         score: props?.score ?? -1,
@@ -377,83 +380,71 @@ export function TerritoryRoute() {
     });
   }, [isSatellite]);
 
+  const filtersActive = minScore > 0 || maxScore < 100 || hideExisting || ownerOccOnly;
+
   return (
-    <div className="relative flex h-full flex-col">
-      <header className="border-b bg-white p-4">
-        <div className="flex items-baseline justify-between">
-          <h1 className="text-2xl font-bold">Territory</h1>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-500">
-              {parcelCount} parcels in view
-            </span>
-            <button
-              type="button"
-              onClick={() => setIsSatellite((v) => !v)}
-              className={[
-                "rounded border px-2 py-1 text-xs font-semibold",
-                isSatellite
-                  ? "border-amber-500 bg-amber-500 text-white"
-                  : "border-amber-500 text-amber-700 hover:bg-amber-50",
-              ].join(" ")}
-              title="Toggle satellite imagery"
-            >
-              🛰 {isSatellite ? "Streets" : "Satellite"}
-            </button>
-            <button
-              type="button"
-              onClick={() => downloadWalkListCsv(lastPinsRef.current)}
-              disabled={parcelCount === 0}
-              className="rounded border border-amber-500 px-2 py-1 text-xs font-semibold text-amber-700 hover:bg-amber-50 disabled:opacity-40"
-            >
-              Export CSV
-            </button>
-            <button
-              type="button"
-              onClick={() => void downloadDoorcards(lastPinsRef.current)}
-              disabled={parcelCount === 0}
-              className="rounded border border-amber-500 px-2 py-1 text-xs font-semibold text-amber-700 hover:bg-amber-50 disabled:opacity-40"
-              title="Generate quarter-sheet doorcard PDFs for all parcels in view"
-            >
-              Print doorcards
-            </button>
-          </div>
-        </div>
-        <div className="mt-2">
-          <AddressSearch placeholder="Search an address…" />
-        </div>
-        {geocodeLabel && (
-          <p className="mt-1 text-xs text-amber-700">📍 {geocodeLabel}</p>
-        )}
-        <div className="mt-2 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 text-[11px] text-slate-500">
+    <div className="relative h-full overflow-hidden">
+      {/* Full-screen map */}
+      <div ref={containerRef} className="absolute inset-0" />
+
+      {/* Floating top panel — search bar + legend/action row + optional panels */}
+      <div className="absolute left-2 right-2 top-2 z-10 flex flex-col gap-1.5">
+        <AddressSearch placeholder="Search an address…" />
+
+        <div className="flex items-center gap-1.5">
+          {/* Colour legend */}
+          <div className="flex flex-1 items-center gap-1 rounded-xl bg-white/92 px-2 py-1 text-[11px] text-slate-500 shadow-sm backdrop-blur-sm">
             <span className="inline-block h-2 w-2 rounded-full bg-amber-200" />
             <span>cold</span>
             <span className="inline-block h-2 w-2 rounded-full bg-amber-400" />
             <span className="inline-block h-2 w-2 rounded-full bg-orange-500" />
             <span className="inline-block h-2 w-2 rounded-full bg-red-700" />
             <span>hot</span>
-            <span className="ml-2 inline-block h-2 w-2 rounded-full bg-slate-400" />
-            <span>existing solar</span>
+            <span className="ml-1 inline-block h-2 w-2 rounded-full bg-slate-400" />
+            <span>solar</span>
           </div>
+
+          {/* Satellite toggle */}
+          <button
+            type="button"
+            onClick={() => setIsSatellite((v) => !v)}
+            className={[
+              "rounded-xl border px-2.5 py-1 text-xs font-semibold shadow-sm backdrop-blur-sm",
+              isSatellite
+                ? "border-amber-500 bg-amber-500 text-white"
+                : "border-transparent bg-white/92 text-slate-700 hover:bg-white",
+            ].join(" ")}
+          >
+            🛰 {isSatellite ? "Streets" : "Sat"}
+          </button>
+
+          {/* Filter toggle */}
           <button
             type="button"
             onClick={() => setFilterOpen((v) => !v)}
             className={[
-              "rounded border px-2 py-0.5 text-[11px] font-semibold",
-              filterOpen || minScore > 0 || maxScore < 100 || hideExisting || ownerOccOnly
+              "rounded-xl border px-2.5 py-1 text-xs font-semibold shadow-sm backdrop-blur-sm",
+              filterOpen || filtersActive
                 ? "border-amber-500 bg-amber-500 text-white"
-                : "border-slate-300 text-slate-500 hover:border-amber-500 hover:text-amber-700",
+                : "border-transparent bg-white/92 text-slate-700 hover:bg-white",
             ].join(" ")}
           >
-            Filters {(minScore > 0 || maxScore < 100 || hideExisting || ownerOccOnly) ? "●" : ""}
+            Filters{filtersActive ? " ●" : ""}
           </button>
         </div>
 
-        {/* Filter panel */}
+        {/* Geocode label */}
+        {geocodeLabel && (
+          <p className="rounded-xl bg-white/92 px-2.5 py-1 text-xs text-amber-700 shadow-sm backdrop-blur-sm">
+            📍 {geocodeLabel}
+          </p>
+        )}
+
+        {/* Filter panel — expands inline below the action row */}
         {filterOpen && (
-          <div className="mt-2 rounded border bg-slate-50 p-3 space-y-2 text-xs">
+          <div className="rounded-xl border bg-white p-3 shadow-lg space-y-2 text-xs">
             <div className="flex items-center gap-2">
-              <span className="w-20 text-slate-600 shrink-0">Score ≥</span>
+              <span className="w-20 shrink-0 text-slate-600">Score ≥</span>
               <input
                 type="range" min={0} max={100} step={5} value={minScore}
                 onChange={(e) => setMinScore(Math.min(Number(e.target.value), maxScore))}
@@ -462,7 +453,7 @@ export function TerritoryRoute() {
               <span className="w-8 text-right font-mono text-slate-700">{minScore}</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="w-20 text-slate-600 shrink-0">Score ≤</span>
+              <span className="w-20 shrink-0 text-slate-600">Score ≤</span>
               <input
                 type="range" min={0} max={100} step={5} value={maxScore}
                 onChange={(e) => setMaxScore(Math.max(Number(e.target.value), minScore))}
@@ -470,15 +461,15 @@ export function TerritoryRoute() {
               />
               <span className="w-8 text-right font-mono text-slate-700">{maxScore}</span>
             </div>
-            <label className="flex items-center gap-2 cursor-pointer select-none">
+            <label className="flex cursor-pointer select-none items-center gap-2">
               <input
                 type="checkbox" checked={hideExisting}
                 onChange={(e) => setHideExisting(e.target.checked)}
                 className="accent-amber-500"
               />
-              <span className="text-slate-700">Hide existing solar installations</span>
+              <span className="text-slate-700">Hide existing solar</span>
             </label>
-            <label className="flex items-center gap-2 cursor-pointer select-none">
+            <label className="flex cursor-pointer select-none items-center gap-2">
               <input
                 type="checkbox" checked={ownerOccOnly}
                 onChange={(e) => setOwnerOccOnly(e.target.checked)}
@@ -486,19 +477,42 @@ export function TerritoryRoute() {
               />
               <span className="text-slate-700">Owner-occupied only</span>
             </label>
-            {(minScore > 0 || maxScore < 100 || hideExisting || ownerOccOnly) && (
+            {filtersActive && (
               <button
                 type="button"
                 onClick={() => { setMinScore(0); setMaxScore(100); setHideExisting(false); setOwnerOccOnly(false); }}
-                className="text-amber-700 underline underline-offset-2 text-[11px]"
+                className="text-[11px] text-amber-700 underline underline-offset-2"
               >
                 Clear filters
               </button>
             )}
           </div>
         )}
-      </header>
-      <div ref={containerRef} className="flex-1" />
+      </div>
+
+      {/* Bottom-left status + export strip (stays left of MapLibre nav controls) */}
+      <div className="absolute bottom-3 left-2 z-10 flex items-center gap-1.5">
+        <span className="rounded-xl bg-white/92 px-2 py-1 text-[11px] text-slate-500 shadow-sm backdrop-blur-sm">
+          {parcelCount} parcels
+        </span>
+        <button
+          type="button"
+          onClick={() => downloadWalkListCsv(lastPinsRef.current)}
+          disabled={parcelCount === 0}
+          className="rounded-xl bg-white/92 px-2 py-1 text-[11px] font-semibold text-amber-700 shadow-sm backdrop-blur-sm hover:bg-white disabled:opacity-40"
+        >
+          CSV ↓
+        </button>
+        <button
+          type="button"
+          onClick={() => void downloadDoorcards(lastPinsRef.current)}
+          disabled={parcelCount === 0}
+          className="rounded-xl bg-white/92 px-2 py-1 text-[11px] font-semibold text-amber-700 shadow-sm backdrop-blur-sm hover:bg-white disabled:opacity-40"
+        >
+          Doorcards ↓
+        </button>
+      </div>
+
       <ParcelDetailSheet parcel={selected} onClose={() => setSelected(null)} />
     </div>
   );

@@ -19,6 +19,17 @@ interface HoaBadge {
   notes: string | null;
 }
 
+interface OwnerRow {
+  owner_name_redacted: string | null;
+  owner_occupied: boolean | null;
+  year_built: number | null;
+  assessed_value_usd: number | null;
+  primary_orientation: string | null;
+  city: string;
+  state: string;
+  postal_code: string;
+}
+
 interface RooftopData {
   south_facing: boolean;
   viable_area_sqft: number;
@@ -133,6 +144,7 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
   const [femaZone, setFemaZone] = useState<{ zone: string; label: string; sfha: boolean } | null | "loading">("loading");
   const [utilityRate, setUtilityRate] = useState<number | null>(null);
   const [triggers, setTriggers] = useState<TriggerCounts | null>(null);
+  const [ownerRow, setOwnerRow] = useState<OwnerRow | null>(null);
 
   const [showKnockPicker, setShowKnockPicker] = useState(false);
   const [showPitches, setShowPitches] = useState(false);
@@ -263,6 +275,21 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
       if (permits > 0 || sales > 0) setTriggers({ permits, sales });
     })();
 
+    // Fetch full parcel row for owner info + home facts (skip for synthetic/geocoded parcels).
+    if (!parcel.id.startsWith("geo:")) {
+      void (async () => {
+        const { data } = await supabase
+          .from("parcel")
+          .select(
+            "owner_name_redacted, owner_occupied, year_built, assessed_value_usd, primary_orientation, city, state, postal_code",
+          )
+          .eq("id", parcel.id)
+          .single();
+        if (cancelled || !data) return;
+        setOwnerRow(data as OwnerRow);
+      })();
+    }
+
     return () => {
       cancelled = true;
       setIncentives(null);
@@ -277,6 +304,7 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
       setShowPitches(false);
       setKnockDone(null);
       setKnockError(null);
+      setOwnerRow(null);
     };
   }, [parcel]);
 
@@ -323,12 +351,16 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
     return map[raw.toUpperCase()] ?? raw;
   };
 
+  // Prefer DB-fetched data; fall back to fields baked into the parcel prop.
+  const yearBuilt = ownerRow?.year_built ?? parcel.year_built;
+  const assessedValue = ownerRow?.assessed_value_usd ?? parcel.assessed_value_usd;
+  const roofOrientation = ownerRow?.primary_orientation ?? parcel.roof_orientation;
   const hasHomeFacts =
-    parcel.year_built !== undefined ||
+    yearBuilt !== undefined ||
     parcel.sqft !== undefined ||
-    parcel.assessed_value_usd !== undefined ||
+    assessedValue !== undefined ||
     parcel.last_sale_date !== undefined ||
-    parcel.roof_orientation !== undefined;
+    roofOrientation !== undefined;
 
   return (
     <>
@@ -340,9 +372,15 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
         <div className="mb-3 flex items-start justify-between gap-2">
           <div>
             <h2 className="text-lg font-semibold leading-tight">{parcel.address}</h2>
-            <p className="text-xs text-slate-500">
-              {parcel.lat.toFixed(4)}, {parcel.lon.toFixed(4)}
-            </p>
+            {ownerRow ? (
+              <p className="text-xs text-slate-500">
+                {ownerRow.city}, {ownerRow.state} {ownerRow.postal_code}
+              </p>
+            ) : (
+              <p className="text-xs text-slate-500">
+                {parcel.lat.toFixed(4)}, {parcel.lon.toFixed(4)}
+              </p>
+            )}
           </div>
           <button
             onClick={onClose}
@@ -388,6 +426,31 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
           ) : null}
         </div>
 
+        {/* PROPERTY OWNER */}
+        {!parcel.id.startsWith("geo:") && (
+          <section className="mb-3 rounded-lg border bg-white p-3">
+            <h3 className="mb-2 text-sm font-semibold text-slate-900">Property Owner</h3>
+            {ownerRow ? (
+              <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                <dt className="text-slate-600">Owner</dt>
+                <dd className="text-slate-700">
+                  {ownerRow.owner_name_redacted ?? "Not on record"}
+                </dd>
+                <dt className="text-slate-600">Occupancy</dt>
+                <dd className={ownerRow.owner_occupied === true ? "font-medium text-green-700" : "text-slate-700"}>
+                  {ownerRow.owner_occupied === true
+                    ? "Owner-occupied"
+                    : ownerRow.owner_occupied === false
+                      ? "Rental / non-owner"
+                      : "Unknown"}
+                </dd>
+              </dl>
+            ) : (
+              <p className="text-xs text-slate-400 animate-pulse">Loading…</p>
+            )}
+          </section>
+        )}
+
         {/* LOCATION & RISK — always shown (flood zone, coordinates) */}
         <section className="mb-3 rounded-lg border bg-white p-3">
           <h3 className="mb-2 text-sm font-semibold text-slate-900">Location & Risk</h3>
@@ -429,10 +492,10 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
           <section className="mb-3 rounded-lg border bg-white p-3">
             <h3 className="mb-2 text-sm font-semibold text-slate-900">Home Facts</h3>
             <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-600">
-              {parcel.year_built !== undefined ? (
+              {yearBuilt !== undefined ? (
                 <>
                   <dt className="text-slate-600">Built</dt>
-                  <dd>{parcel.year_built}</dd>
+                  <dd>{yearBuilt}</dd>
                 </>
               ) : null}
               {parcel.sqft !== undefined ? (
@@ -441,16 +504,16 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
                   <dd>{parcel.sqft.toLocaleString()} sqft</dd>
                 </>
               ) : null}
-              {parcel.roof_orientation !== undefined ? (
+              {roofOrientation !== undefined ? (
                 <>
                   <dt className="text-slate-600">Orientation</dt>
-                  <dd>{orientationLabel(parcel.roof_orientation)}</dd>
+                  <dd>{orientationLabel(roofOrientation)}</dd>
                 </>
               ) : null}
-              {parcel.assessed_value_usd !== undefined ? (
+              {assessedValue !== undefined ? (
                 <>
-                  <dt className="text-slate-600">Assessed</dt>
-                  <dd>{fmt$(parcel.assessed_value_usd)}</dd>
+                  <dt className="text-slate-600">Assessed value</dt>
+                  <dd>{fmt$(Number(assessedValue))}</dd>
                 </>
               ) : null}
               {parcel.last_sale_date !== undefined ? (
