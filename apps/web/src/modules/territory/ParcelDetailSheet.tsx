@@ -3,12 +3,27 @@
 // and an on-demand PVWatts production estimate.
 import { useEffect, useState } from "react";
 import {
+  CensusContextSchema,
   IncentivesResponseSchema,
   PvWattsEstimateSchema,
+  type CensusContext,
   type IncentivesResponse,
   type PvWattsEstimate,
 } from "@sunpath/shared";
 import { supabase } from "@/lib/supabase.js";
+
+interface HoaBadge {
+  name: string;
+  rule_color: "red" | "yellow" | "green";
+  notes: string | null;
+}
+
+// Default county FIPS for Scott County, VA — first/only adapter target.
+// Future: store on parcel row when adapters populate FIPS.
+const DEFAULT_FIPS: Record<string, { state: string; county: string }> = {
+  VA: { state: "51", county: "169" },
+  TN: { state: "47", county: "067" },
+};
 
 export interface ParcelDetail {
   id: string;
@@ -30,6 +45,8 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
   const [estimate, setEstimate] = useState<PvWattsEstimate | null>(null);
   const [estimateError, setEstimateError] = useState<string | null>(null);
   const [loadingEstimate, setLoadingEstimate] = useState(false);
+  const [hoa, setHoa] = useState<HoaBadge | null>(null);
+  const [census, setCensus] = useState<CensusContext | null>(null);
 
   useEffect(() => {
     if (!parcel) return;
@@ -42,11 +59,31 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
       const parsed = IncentivesResponseSchema.safeParse(data);
       if (parsed.success) setIncentives(parsed.data);
     })();
+    void (async () => {
+      const { data } = await supabase.rpc("hoa_for_parcel", {
+        parcel_id: parcel.id,
+      });
+      if (cancelled) return;
+      const row = Array.isArray(data) ? data[0] : null;
+      if (row && row.rule_color) setHoa(row as HoaBadge);
+    })();
+    void (async () => {
+      const fips = DEFAULT_FIPS[parcel.state];
+      if (!fips) return;
+      const { data } = await supabase.functions.invoke("census-fetch", {
+        body: { state_fips: fips.state, county_fips: fips.county },
+      });
+      if (cancelled) return;
+      const parsed = CensusContextSchema.safeParse(data);
+      if (parsed.success) setCensus(parsed.data);
+    })();
     return () => {
       cancelled = true;
       setIncentives(null);
       setEstimate(null);
       setEstimateError(null);
+      setHoa(null);
+      setCensus(null);
     };
   }, [parcel]);
 
@@ -113,7 +150,40 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
             <span className="text-slate-500"> / 100</span>
           </>
         )}
+        {hoa ? (
+          <div className="mt-2 flex items-center gap-2">
+            <span
+              className={
+                hoa.rule_color === "red"
+                  ? "inline-block h-2 w-2 rounded-full bg-red-500"
+                  : hoa.rule_color === "yellow"
+                    ? "inline-block h-2 w-2 rounded-full bg-yellow-500"
+                    : "inline-block h-2 w-2 rounded-full bg-green-500"
+              }
+              aria-hidden
+            />
+            <span className="text-xs text-slate-700">
+              HOA: {hoa.name}
+              {hoa.notes ? ` — ${hoa.notes}` : ""}
+            </span>
+          </div>
+        ) : null}
       </div>
+
+      {census ? (
+        <div className="mb-3 rounded border bg-white p-2 text-xs text-slate-600">
+          <span className="font-medium text-slate-700">Area context:</span>{" "}
+          {census.owner_occupied_pct !== null
+            ? `${census.owner_occupied_pct}% owner-occupied`
+            : ""}
+          {census.median_household_income_usd !== null
+            ? ` • median income $${census.median_household_income_usd.toLocaleString()}`
+            : ""}
+          {census.median_home_value_usd !== null
+            ? ` • median home $${census.median_home_value_usd.toLocaleString()}`
+            : ""}
+        </div>
+      ) : null}
 
       <section className="mb-3">
         <h3 className="mb-1 text-sm font-semibold text-slate-700">

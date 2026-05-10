@@ -36,9 +36,26 @@ export interface DbLead {
   attempts: number;
 }
 
+export interface DbBillCapture {
+  id: string; // client-generated UUID
+  rep_id: string;
+  lead_id?: string | null;
+  utility_name?: string | null;
+  total_kwh?: number | null;
+  rate_kwh_usd?: number | null;
+  total_amount_usd?: number | null;
+  billing_period_start?: string | null;
+  billing_period_end?: string | null;
+  parsed_fields?: unknown;
+  created_at: string;
+  synced: 0 | 1;
+  attempts: number;
+}
+
 class SunpathDb extends Dexie {
   doorEvents!: Table<DbDoorEvent, string>;
   leads!: Table<DbLead, string>;
+  billCaptures!: Table<DbBillCapture, string>;
 
   constructor() {
     super("sunpath");
@@ -46,6 +63,11 @@ class SunpathDb extends Dexie {
       // & = primary key. Indexed fields after the comma.
       doorEvents: "&client_event_id, synced, occurred_at, parcel_id, rep_id",
       leads: "&id, synced, stage, parcel_id, rep_id, next_action_at",
+    });
+    this.version(2).stores({
+      doorEvents: "&client_event_id, synced, occurred_at, parcel_id, rep_id",
+      leads: "&id, synced, stage, parcel_id, rep_id, next_action_at",
+      billCaptures: "&id, synced, rep_id, lead_id, created_at",
     });
   }
 }

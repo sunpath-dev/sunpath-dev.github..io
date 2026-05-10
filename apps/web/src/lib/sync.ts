@@ -96,6 +96,49 @@ async function drainLeads(): Promise<void> {
   );
 }
 
+async function drainBillCaptures(): Promise<void> {
+  const pending = await db.billCaptures
+    .where("synced")
+    .equals(0)
+    .and((b) => b.attempts < MAX_ATTEMPTS)
+    .limit(50)
+    .toArray();
+  if (pending.length === 0) return;
+
+  const payload = pending.map((b) => ({
+    id: b.id,
+    rep_id: b.rep_id,
+    lead_id: b.lead_id ?? null,
+    utility_name: b.utility_name ?? null,
+    total_kwh: b.total_kwh ?? null,
+    rate_kwh_usd: b.rate_kwh_usd ?? null,
+    total_amount_usd: b.total_amount_usd ?? null,
+    billing_period_start: b.billing_period_start ?? null,
+    billing_period_end: b.billing_period_end ?? null,
+    parsed_fields: b.parsed_fields ?? null,
+    created_at: b.created_at,
+  }));
+
+  const { error } = await supabase
+    .from("bill_capture")
+    .upsert(payload, { onConflict: "id" });
+
+  if (error) {
+    await Promise.all(
+      pending.map((b) =>
+        db.billCaptures.update(b.id, {
+          attempts: b.attempts + 1,
+          // sync engine doesn't surface per-row errors yet; bumping attempts is enough
+        }),
+      ),
+    );
+    return;
+  }
+  await Promise.all(
+    pending.map((b) => db.billCaptures.update(b.id, { synced: 1 })),
+  );
+}
+
 export async function drain(): Promise<void> {
   if (draining) return;
   if (typeof navigator !== "undefined" && navigator.onLine === false) return;
@@ -103,6 +146,7 @@ export async function drain(): Promise<void> {
   try {
     await drainDoorEvents();
     await drainLeads();
+    await drainBillCaptures();
   } finally {
     draining = false;
   }

@@ -5,10 +5,51 @@
 // Tesseract.js for in-browser OCR; the parser contract is identical.
 import { useMemo, useState } from "react";
 import { parseBillText, type BillFields } from "@sunpath/shared";
+import { db } from "@/lib/db.js";
+import { kickSync } from "@/lib/sync.js";
+import { useAuth } from "@/lib/auth.js";
 
 export function BillCaptureRoute() {
+  const { session } = useAuth();
   const [text, setText] = useState<string>("");
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">(
+    "idle",
+  );
+  const [saveError, setSaveError] = useState<string | null>(null);
   const fields: BillFields = useMemo(() => parseBillText(text), [text]);
+
+  const canSave =
+    !!session?.user.id &&
+    (fields.total_kwh !== null || fields.total_amount_usd !== null);
+
+  const onSave = async () => {
+    if (!session?.user.id) return;
+    setSaveState("saving");
+    setSaveError(null);
+    try {
+      await db.billCaptures.put({
+        id: crypto.randomUUID(),
+        rep_id: session.user.id,
+        lead_id: null,
+        utility_name: fields.utility_name,
+        total_kwh: fields.total_kwh,
+        rate_kwh_usd: fields.rate_kwh_usd,
+        total_amount_usd: fields.total_amount_usd,
+        billing_period_start: fields.billing_period_start,
+        billing_period_end: fields.billing_period_end,
+        parsed_fields: { ...fields, raw_text_length: text.length },
+        created_at: new Date().toISOString(),
+        synced: 0,
+        attempts: 0,
+      });
+      kickSync();
+      setSaveState("saved");
+      setText("");
+    } catch (err) {
+      setSaveState("error");
+      setSaveError(String(err));
+    }
+  };
 
   return (
     <div className="flex h-full flex-col">
@@ -49,9 +90,27 @@ export function BillCaptureRoute() {
             </p>
           ) : null}
         </section>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={onSave}
+            disabled={!canSave || saveState === "saving"}
+            className="rounded bg-amber-500 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-amber-600 disabled:opacity-40"
+          >
+            {saveState === "saving" ? "Saving…" : "Save capture"}
+          </button>
+          {saveState === "saved" ? (
+            <span className="text-xs text-green-700">
+              Saved — will sync when online.
+            </span>
+          ) : null}
+          {saveState === "error" ? (
+            <span className="text-xs text-red-700">{saveError}</span>
+          ) : null}
+        </div>
         <p className="text-xs text-slate-400">
-          PII heads-up: nothing leaves this device until you save the capture
-          to a lead. Plain text is held in component state only.
+          PII heads-up: nothing leaves this device until sync. Saved captures
+          live in IndexedDB until they reach Supabase, then drain locally.
         </p>
       </div>
     </div>
