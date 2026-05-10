@@ -11,6 +11,7 @@ import {
 import { supabase } from "@/lib/supabase.js";
 import { useAuth } from "@/lib/auth.js";
 import { recordDoorEvent } from "@/lib/door-events.js";
+import { addToRoute, isInRoute, removeFromRoute } from "@/lib/route.js";
 
 interface HoaBadge {
   name: string;
@@ -137,6 +138,13 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
   const [showPitches, setShowPitches] = useState(false);
   const [knockDone, setKnockDone] = useState<DoorOutcome | null>(null);
   const [knockError, setKnockError] = useState<string | null>(null);
+  const [inRoute, setInRoute] = useState(false);
+
+  // Sync inRoute with localStorage whenever parcel changes.
+  useEffect(() => {
+    if (!parcel) return;
+    setInRoute(isInRoute(parcel.id));
+  }, [parcel]);
 
   useEffect(() => {
     if (!parcel) return;
@@ -634,6 +642,37 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
 
         {/* ACTION BUTTONS */}
         <div className="mt-4 flex flex-col gap-2">
+
+          {/* Add / Remove from today's route */}
+          <button
+            type="button"
+            onClick={() => {
+              if (!parcel) return;
+              if (inRoute) {
+                removeFromRoute(parcel.id);
+                setInRoute(false);
+              } else {
+                addToRoute({
+                  id: parcel.id,
+                  address: parcel.address,
+                  lat: parcel.lat,
+                  lon: parcel.lon,
+                  score: parcel.score,
+                  existing: parcel.existing,
+                });
+                setInRoute(true);
+              }
+            }}
+            className={[
+              "w-full rounded border px-3 py-2 text-sm font-semibold transition-colors",
+              inRoute
+                ? "border-emerald-500 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                : "border-amber-500 bg-amber-50 text-amber-700 hover:bg-amber-100",
+            ].join(" ")}
+          >
+            {inRoute ? "✓ In today's route — tap to remove" : "+ Add to today's route"}
+          </button>
+
           {knockDone ? (
             <div className="rounded bg-green-50 px-3 py-2 text-center text-xs font-medium text-green-800">
               Recorded: {OUTCOME_LABELS[knockDone]}
