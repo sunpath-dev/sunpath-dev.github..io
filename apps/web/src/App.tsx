@@ -25,6 +25,11 @@ const BillCaptureRoute = lazy(() =>
 const CallbackRoute = lazy(() =>
   import("@/modules/callback/index.js").then((m) => ({ default: m.CallbackRoute })),
 );
+const AcceptInviteRoute = lazy(() =>
+  import("@/modules/invite/index.js").then((m) => ({
+    default: m.AcceptInviteRoute,
+  })),
+);
 
 function RouteFallback() {
   return (
@@ -39,6 +44,9 @@ export default function App() {
   const isCallback =
     typeof window !== "undefined" &&
     window.location.hash.startsWith("#/d/");
+  const isAcceptInvite =
+    typeof window !== "undefined" &&
+    window.location.hash.startsWith("#/accept-invite");
 
   useEffect(() => {
     if (!session) return;
@@ -59,6 +67,17 @@ export default function App() {
         <Routes>
           <Route path="/d/:slug" element={<CallbackRoute />} />
           <Route path="*" element={<CallbackRoute />} />
+        </Routes>
+      </Suspense>
+    );
+  }
+  // Accept-invite handles its own auth gating.
+  if (isAcceptInvite) {
+    return (
+      <Suspense fallback={<RouteFallback />}>
+        <Routes>
+          <Route path="/accept-invite" element={<AcceptInviteRoute />} />
+          <Route path="*" element={<AcceptInviteRoute />} />
         </Routes>
       </Suspense>
     );
