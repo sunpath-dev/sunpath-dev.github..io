@@ -107,20 +107,20 @@ Goal: rep can install the PWA on his phone, log in, and see a MapLibre map of hi
 Goal: rep plans tomorrow's walk from the couch.
 
 **1.1 — Parcel adapter framework** *(parallel)*
-- `packages/shared/src/adapters.ts`: `ParcelAdapter` interface (`fetchAll(): AsyncIterable<ParcelRaw>`, `normalize(raw): Parcel`).
-- First adapter: rep's top county. Decide ArcGIS REST vs. Tyler portal vs. CSV based on what's available.
-- Edge function `supabase/functions/ingest-parcels/`: reads adapter, upserts into `parcel`. Cron daily.
+- `packages/shared/src/adapters.ts`: `ParcelAdapter` interface (`fetchAll(): AsyncIterable<ParcelRaw>`, `normalize(raw): Parcel`). ✅ shipped.
+- First adapter: rep's top county. Decide ArcGIS REST vs. Tyler portal vs. CSV based on what's available. ✅ shipped (Scott County VA via VGIN ArcGIS REST).
+- Edge function `supabase/functions/ingest-parcels/`: reads adapter, upserts into `parcel`. Cron daily. ✅ shipped (incremental edge fn capped at 5k features/run; full backfill via `pnpm ingest:parcels` CLI).
 
 **1.2 — Census ACS enrichment** *(parallel with 1.1)*
-- Edge function `ingest-area-signals/`: pulls `B19013_001E`, `B25003_002E`, `B25077_001E` for relevant block groups, populates `area_signal`. Refresh monthly.
+- Edge function `ingest-area-signals/`: pulls `B19013_001E`, `B25003_002E`, `B25077_001E` for relevant block groups, populates `area_signal`. Refresh monthly. ✅ shipped (writes per-county ACS payloads scoped to a county-bbox polygon; proper TIGER polygons deferred).
 
 **1.3 — PVWatts + Utility Rates enrichment** *(depends on 1.1)*
-- Edge function `enrich-pvwatts/`: for each new parcel, call PVWatts v8 + Utility Rates v3, populate `property_signal`. Cache by `lat,lon` rounded to 4 decimals (design §14).
+- Edge function `pvwatts-fetch/`: per-parcel call to PVWatts v8 + Utility Rates v3, results cached into `property_signal kind=pvwatts` when `parcel_id` is supplied. ✅ shipped.
 
 **1.4 — Knock score v1** *(depends on 1.1, 1.2, 1.3)*
-- `packages/shared/src/scoring.ts`: pure function from design §13 (9 factors, total 100, exclude `has_existing_solar`).
-- Unit tests covering each factor and edge cases.
-- Edge function `score-parcels/`: nightly batch updates `parcel.score` and `parcel.score_factors`.
+- `packages/shared/src/scoring.ts`: pure function from design §13 (9 factors, total 100, exclude `has_existing_solar`). ✅ shipped.
+- Unit tests covering each factor and edge cases. ✅ shipped.
+- Edge function `score-parcels/`: nightly batch updates `parcel.score` and `parcel.score_factors`. ✅ shipped (migration 0014 `compute_parcel_score_full()` + `recompute_scores_batch()`; edge fn loops in 500-row pages).
 
 **1.5 — Territory module UI** *(depends on 1.4)*
 - `modules/territory/`: heatmap layer (color-graded by `score`), filter panel (score range, owner-occupied, no existing solar, value bracket), parcel detail sheet with score factors.
@@ -149,10 +149,10 @@ Goal: rep stops carrying a clipboard.
 
 Goal: no-answers convert into callbacks.
 
-- **3.1 Doorcard PDF generator** — Edge function `doorcard-pdf/`: address + roof guess + neighborhood avg + savings preview; quarter-sheet print layout (batch) and on-demand single.
-- **3.2 Short-URL + landing pages** — slug per parcel (e.g. `sunpath.dev/#/d/<slug>`); landing page renders saving preview + callback form; submission writes to `lead`.
-- **3.3 Lead pipeline** — `modules/pipeline/`: lead → sit → sold → installed → paid; drag/tap stage transitions; per-lead notes/files.
-- **3.4 Follow-up reminders** — push notifications (Web Push via Supabase Edge Function + VAPID).
+- **3.1 Doorcard PDF generator** — Edge function `doorcard-pdf/`: address + roof guess + neighborhood avg + savings preview; quarter-sheet print layout (batch) and on-demand single. ✅ shipped (pdf-lib quarter-sheet template; per-parcel & batch via `parcel_ids[]`; pipeline UI 🖨 button calls it).
+- **3.2 Short-URL + landing pages** — slug per parcel (e.g. `sunpath.dev/#/d/<slug>`); landing page renders saving preview + callback form; submission writes to `lead`. ✅ shipped (`callback-submit` edge fn + `CallbackRoute`).
+- **3.3 Lead pipeline** — `modules/pipeline/`: lead → sit → sold → installed → paid; drag/tap stage transitions; per-lead notes/files. ✅ shipped (`apps/web/src/modules/pipeline/`).
+- **3.4 Follow-up reminders** — push notifications (Web Push via Supabase Edge Function + VAPID). ✅ shipped (migration 0011 + `push-send` + SW push handler + `PushOptIn`).
 
 **Phase 3 deliverable:** doors that didn't open turn into measurable callbacks.
 

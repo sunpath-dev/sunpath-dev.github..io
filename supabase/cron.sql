@@ -70,6 +70,13 @@ select cron.schedule(
   $$select public.invoke_edge_function('forecast-fetch');$$
 );
 
+-- Daily 02:00 UTC: incremental parcel ingest from VGIN
+select cron.schedule(
+  'sunpath_ingest_parcels',
+  '0 2 * * *',
+  $$select public.invoke_edge_function('ingest-parcels');$$
+);
+
 -- Daily 02:15 UTC: permit scan
 select cron.schedule(
   'sunpath_scan_permits',
