@@ -1,150 +1,152 @@
-# Sunpath
-### Field intelligence for solar door-to-door teams
+# Sunpath: field intelligence for solar door-to-door teams
 
-*A marketing white paper — May 2026*
-
----
-
-## The pitch in a paragraph
-
-Sunpath is a phone-first app for solar reps who knock doors. It tells them which house to walk up to next, what to say when the homeowner answers, and what to do tomorrow morning when last night's storm just changed half their territory. It runs offline in the cab of a truck on a rural backroad, and it costs a fraction of the legacy CRMs the big national installers built their stacks on.
-
-We built it because the existing tools were designed for desks. Solar sales doesn't happen at desks.
+*Whitepaper — May 2026*
 
 ---
 
-## Who this is for
+## Executive summary
 
-- **Independent and regional solar installers** doing 50–500 installs a year who need a sales tool that fits their economics
-- **Door-to-door sales teams** working residential neighborhoods — especially in rural and small-town markets where the national CRMs don't have great data coverage
-- **Sales managers** who want their reps actually walking high-probability streets instead of driving in circles
-- **Owner-operators** who do their own knocking and need their territory, leads, and quotes in one place that works on a phone
+Door-to-door solar sales is a precision problem disguised as a volume game. Most reps walk the wrong houses, lose the thread between visits, and miss the narrow rewarm window when a once-reluctant homeowner becomes ready to sign. The tools that exist were built for desks — for proposal generation, project management, and enterprise CRM workflows. None of them were designed to answer the question a rep has at 6:30pm standing at the end of a residential street: *which door, and why, right now?*
 
-If you're a 200-rep national installer with a Salesforce build-out and an in-house data team, you're not the target market. If you're three reps in a pickup, you are.
+Sunpath is the field intelligence layer between a rep's phone and the doors he knocks. It installs from a browser, works offline, and answers four questions — where to walk, what to say, what to do tomorrow, and who to come back to. It draws on ten public data sources to score every parcel in a territory 0–100, surfaces personalized savings estimates from a photo of a utility bill in under 15 seconds, and watches dormant leads for the public signals that mean the timing has changed.
 
----
-
-## The problem
-
-Door-to-door solar sales has three structural problems that software hasn't solved well:
-
-**1. Reps walk the wrong houses.** Without per-parcel signal, reps default to "this neighborhood looks nice" or "we already have a customer two doors down." They burn the workday on parcels that were never going to convert — a renter, an HOA-restricted roof, a household that already has solar, a foreclosure.
-
-**2. Reps lose the thread between visits.** A "callback Tuesday" written on a paper map, or buried in a SMS thread, or typed into a CRM that requires cell service to load, is a callback that doesn't happen. Most teams' true conversion rate from "interested" → "signed" is gated on follow-up discipline they don't have time for.
-
-**3. Reps miss the rewarm window.** Six months after a "no thanks," the homeowner's electric bill went up 18%, a tax credit got extended, or a hailstorm bent their gutters. That's the moment to come back. Nothing today tells the rep that moment has arrived.
-
-Existing CRMs (Solo, Aurora, the Salesforce builds) solve different problems — they're great at proposal generation and at managing closed deals. They're not built to tell a rep on Maple Street, at 6:47pm on a Wednesday, *which door to walk to next*.
+This paper describes how Sunpath fits into a solar sales operation, how the knock score works, where the data comes from, and what differentiates it from the general-purpose canvassing tools the market already offers.
 
 ---
 
-## What Sunpath does
+## The rep's day: how Sunpath fits the workflow
 
-Sunpath sits in the rep's pocket and answers four questions:
+Sunpath is organized around the natural arc of a field rep's day. It does not require any workflow change beyond what the rep already does — it simply makes each step faster and better-informed.
 
-> **Where should I knock right now?**
+### Before he walks
 
-The territory map shows every parcel in the rep's assigned area, color-tinted by a knock score. The score combines public data (parcel age, assessed value, owner-occupied status, known existing solar arrays, weather exposure) with the team's own history (recent door events, who's been called back, who's a hard no). High-score pins glow. Existing-solar pins fade. Reps walk toward what's bright.
+The rep opens the territory map. Every parcel in his assigned area is color-coded by a knock score from 0 to 100. Green parcels are high-probability targets. Gray parcels are filtered out — renters, properties with existing solar arrays already recorded, HOA-restricted lots where rooftop solar is prohibited. The rep can export a prioritized walk list for the day with a single tap.
 
-> **What should I say at this door?**
+The score is not a guess. It is a weighted composite of owner-occupancy, solar production potential for the specific roof geometry and orientation, recent permit activity in the neighborhood, utility rate history, and property sale date. Each factor is sourced from a named public agency — nothing is inferred from consumer data or third-party profiles.
 
-Tap a parcel and Sunpath shows the homeowner's likely utility, an estimated annual electric bill range, the relevant federal and state incentives in effect *today* (pulled live from DSIRE, the federal incentive database), and whether anyone on the team has knocked here before — and what happened.
+### On the porch
 
-> **What did I do today, and what's tomorrow?**
+One tap per door. The rep selects an outcome — No Answer, Soft No, Hard No, Callback, Sit, or Sale — and puts his phone back in his pocket. GPS coordinates, timestamp, and current weather conditions attach automatically. If no cell signal is available, the event is queued locally and replays the moment the device reconnects. There is no form to fill out, no login screen to navigate, and no dependency on network availability.
 
-A single tap per door records the outcome — no answer, not interested, callback, appointment. The walk log is a live ledger; nothing gets lost between the door and the truck. Tomorrow morning, the pipeline view sorts every open lead by next-action date, with weather, drive time, and walkability folded in.
+### When someone shows a bill
 
-> **Who do I need to come back to?**
+The rep opens the bill capture screen and photographs the homeowner's utility statement. On-device OCR extracts the monthly kWh usage, dollar amount, and utility name. Sunpath joins those numbers to a PVWatts v8 solar production estimate for that parcel's coordinates, roof area, and tilt — and presents a personalized annual savings figure and estimated payback period in under 15 seconds. The homeowner sees a number that reflects their actual usage and their actual roof, not a market average.
 
-Sunpath watches public signals after the first visit. If the homeowner's utility raises rates, if a new state incentive lands, if a windstorm pushes through the neighborhood — Sunpath surfaces the dormant lead with the reason. The rep walks back with a fresh angle, not a recycled pitch.
+The bill image is not stored on the server. Only the parsed numerics — usage, rate, and date range — are retained, linked to the parcel ID. No homeowner name, no account number, no personally identifiable information of any kind.
 
----
+### When no one answers
 
-## How it works (in plain English)
+Sunpath generates a leave-behind card with a unique short URL tied to the parcel and the visit. The URL lands on a mobile callback form. When the homeowner fills it out, the lead is attributed back to the original door event. The rep sees the inbound lead in his pipeline the next time he opens the app, even if weeks have passed.
 
-Sunpath has three layers:
+### The next morning
 
-**The territory layer.** We pull public parcel data (county assessor records and the state-level GIS feeds, like Virginia's VGIN), normalize it into one shape, and cache it locally on the rep's phone. The map you see is the same map whether you're in town or twenty minutes past the last cell tower.
+A push notification surfaces the top parcels to revisit and explains why each one has moved. A neighbor pulled a solar permit. The utility announced a rate increase. The house changed hands last month. A callback appointment is due today. The rep starts the day with a prioritized list and a reason for each door, not a cold map.
 
-**The signal layer.** A handful of public APIs feed Sunpath continuously: NOAA's National Weather Service for forecast and alerts; the federal DSIRE database for incentives; NREL's PVWatts for system-size estimates; the U.S. Energy Information Administration for utility rate trends; the U.S. Census American Community Survey for owner-occupancy and income context. None of this requires the rep to know it exists. It just shapes the score and the talking points.
+### HOA pre-check
 
-**The rep layer.** The walk-log, the lead pipeline, the bill captures, the quotes — anything the rep generates in the field. This is the part that's private to the team. It sits in a Postgres database with row-level security: a rep can only see their own work and team-shared territory; nothing leaks between accounts.
+Every parcel carries a red, yellow, or green HOA badge based on the recorded restriction data for that community. A red badge means the homeowner is almost certainly unable to install rooftop solar regardless of interest. Reps do not see this at the door — they see it before they park.
 
-The whole app is a Progressive Web App. A rep installs it once from `sunpath.dev` (no app store), it caches itself, and it works the next time they open it whether they have a signal or not. Door events written offline replay automatically the moment the truck rolls back into coverage.
+### Lead pipeline
 
----
-
-## What Sunpath is *not*
-
-We're disciplined about scope. Sunpath does not try to be:
-
-- **A proposal generator.** When the rep needs a 30-page system design with shading models, they hand off to Aurora or whatever the installer already uses.
-- **A finance/lender platform.** We surface incentives; we don't underwrite loans.
-- **An installation project manager.** Once the contract's signed, the deal hands off to whatever the installer already runs.
-- **A commission tracker.** The schema has a place for it, but the workflow stays in QuickBooks or whatever payroll tool already exists.
-- **A national-installer enterprise platform.** If you need SAML SSO, audit logs that satisfy SOC 2 Type II, and a 99.99% SLA, we are not your tool yet.
-
-This is a deliberate choice. The smaller the surface, the faster the workflow.
+Sunpath tracks the full progression from initial door event through lead, sit, and sale. Reps attach notes and files at any stage. The pipeline is scoped by row-level security to the team that created it — no rep sees another team's leads, and no data is shared across accounts.
 
 ---
 
-## Privacy and data posture
+## How the knock score works
 
-A few things we want to be explicit about, because solar customers ask:
+The knock score is a 0–100 composite that ranks every parcel in a territory by conversion probability. It is recalculated when new public signals arrive and when the rep's own door-event history accumulates enough data to update the local prior.
 
-- **Homeowner data we collect from the public record stays at the parcel level** — address, year built, assessed value, ownership status. We don't buy or scrape consumer credit data, social profiles, or anything outside the public record.
-- **Personal contact information** (name, phone, email) is stored *only when the homeowner gives it to the rep*. It's encrypted at rest, scoped to the team that captured it, and never shared across teams.
-- **We don't sell data.** Sunpath is sold as software to installers. There is no data-broker side business, and the architecture deliberately makes one impossible — the team's leads are isolated by row-level security in their own database tenant.
-- **Utility-bill images are stored encrypted**, accessible only to the rep who captured them and their direct manager. Reps can purge a capture at any time.
-- **Public data sources are cited everywhere they appear** — homeowners, regulators, and reps can always trace a number back to the agency that published it.
+The score is built from five weighted factor groups:
 
-Production deployment includes a `SECURITY.md` with a vulnerability disclosure path and a documented data-retention policy.
+**Ownership and occupancy.** Owner-occupied parcels score higher than rentals. The ownership signal comes from county assessor records; the occupancy probability is informed by Census ACS tract-level owner-occupancy rates. Properties with an identified solar installation already in place are suppressed entirely.
+
+**Solar production potential.** NREL PVWatts v8 models the annual kWh output for the parcel's location, roof area, and estimated tilt. Higher production potential means a stronger financial case and a higher score. Utility rate data from NREL's Utility Rates API determines the dollar value of that production.
+
+**Neighborhood permit activity.** A solar permit pulled by a neighbor within a quarter-mile radius in the last 90 days is one of the strongest predictors of near-term conversion. Neighbors talk. A permit in the block is a social proof signal, a pricing anchor, and evidence that the HOA (if any) has cleared the project. This signal triggers a rewarm flag on previously contacted parcels as well as scoring uplift on new ones.
+
+**Rate and financial signals.** Year-over-year utility rate changes from EIA v2 affect every parcel served by that utility. When a utility raises rates materially, parcels in that service territory receive a scoring uplift — the financial case for solar has just improved without the homeowner doing anything.
+
+**Recency and lifecycle signals.** A recent property sale is a rewarm trigger. New homeowners are statistically more likely to make capital improvements, have not yet been approached by any rep, and may be actively evaluating their energy costs. A parcel that went to a new owner in the last 60 days scores higher than an identical parcel with a ten-year ownership tenure.
+
+All scoring logic is open and auditable in the application's source. Reps and managers can inspect the factor weights. There is no black-box model and no reliance on consumer profile data.
 
 ---
 
-## Where Sunpath fits
+## Data sources
 
-| Tool | Strength | Sunpath relationship |
+Every signal that feeds Sunpath comes from a named public agency or open dataset. No data brokerage, no scraping of consumer profiles, no third-party identity data of any kind.
+
+| Source | What it provides | Notes |
 |---|---|---|
-| Salesforce / HubSpot | Enterprise CRM, broad integrations | Sunpath replaces the door-to-door portion; deals can hand off to either if the installer uses one |
-| Solo / Aurora | Proposal & system design | Complementary — Sunpath sends qualified leads to Solo/Aurora for the proposal stage |
-| Spotio / SalesRabbit | General-purpose D2D | Direct alternative — Sunpath specializes for solar instead of being industry-agnostic |
-| Pen-and-paper / Google Sheets | Free, simple | Honest comparison — most small teams really do still use this; Sunpath is the upgrade path |
+| NOAA National Weather Service (`api.weather.gov`) | Current conditions, forecast, severe weather alerts | No API key required; official US government data |
+| NREL PVWatts v8 | Per-address solar production estimate (kWh/yr), system-size model | Free API with key; authoritative federal source |
+| NREL Utility Rates v3 | Current utility name and retail rate per kWh by location | Pairs with PVWatts for financial modeling |
+| US Census ACS 5-year | Owner-occupancy rate, median household income, median home value, energy burden by census tract | Free API with key; American Community Survey public-use data |
+| DSIRE (`dsireusa.org`) | State solar incentive programs, rebates, net metering rules in effect today | Free API with registration; NC Clean Energy Technology Center |
+| EIA v2 | Utility rate trends, year-over-year change by utility and state | Free API with key; US Energy Information Administration |
+| County permit records | Neighbor solar permits within ¼ mile | Sourced via county GIS / open permit feeds where available |
+| Property sales data | Recent ownership change as a rewarm signal | County assessor or state GIS transfer records |
+| ArcGIS World Geocoding | Address lookup and parcel match | Covers all US rural roads including counties without a local geocoder |
+| Google Solar API *(planned)* | Per-roof segment analysis, viable panel area, maximum panel count | Free API; adds per-roof precision beyond the PVWatts point estimate |
 
-We assume the installer already has *something* on the proposal/finance side. We don't ask them to rip it out.
-
----
-
-## What it costs
-
-We charge per active rep per month. There is no per-deal commission, no data-volume tier, no minimum seat count. A two-rep team pays for two reps. A team that benches a rep for the winter pauses that seat. Pricing is on the website; this paper isn't where we negotiate.
-
-There is no free tier with a vendor watermark on the rep's phone. There is a 30-day pilot with full access, no credit card.
+All third-party API calls are routed through server-side edge functions. API keys never reach the device. The browser communicates only with Sunpath's own backend.
 
 ---
 
-## What we ship next
+## Privacy commitment
 
-The current build covers Scott County, Virginia (FIPS 51169) — Gate City and the surrounding area. The roadmap, in order, is:
+Sunpath's data posture is zero PII on parcel data and strict data isolation between teams.
 
-1. **Russell County, Virginia** and the rest of southwest Virginia — same parcel-data plumbing, just new adapters
-2. **Cross-state expansion to neighboring Tennessee** — adds the same adapter pattern against TN's parcel feed
-3. **Bill OCR** — drop a photo of a utility bill on the screen, get the kWh, the rate, and a system-size estimate populated automatically (existing reps already do this in their head; we're saving the typing)
-4. **Rewarm triggers** — the part where Sunpath watches your dead leads for you and pings the rep when the public signal changes
-5. **HOA awareness** — flagging parcels in HOAs that restrict roof-mount solar, so the rep doesn't burn the visit
+Bill capture is the highest-risk workflow in any solar sales tool — a utility bill contains account numbers, rate codes, and usage history. Sunpath processes the image on-device using OCR and discards it. The server stores only three derived values: monthly kWh usage, dollar amount, and billing date range. These are linked to a parcel ID, not to a homeowner name or account number. No image ever touches the server.
 
-Items 1 and 2 require nothing of the customer. Items 3–5 are the work that makes Sunpath different from a sales-tracker.
+Knock outcomes are stored by parcel ID and rep account. The rep's own location is used only to attach weather data to a door event and to sort the walk list by proximity — it is never stored on the server or shared with any third party.
+
+There is no homeowner name lookup, no income or credit data pull, no mortgage record access, and no data brokerage relationship of any kind. Every signal that feeds the knock score traces back to a named public agency. If a homeowner asks a rep where a number came from, the rep can give a specific, true answer.
+
+Row-level security in the database ensures that each team's lead data is fully isolated. Supabase RLS policies are enforced at the database level, not in application code, and are audited with each migration.
 
 ---
 
-## How to try it
+## Competitive differentiation
 
-Open `https://sunpath.dev` on your phone. Use Chrome on Android or Safari on iOS. Tap "add to home screen" when the browser offers. Sign in with a magic link, and you're done — no app store, no install, no setup call required.
+The general-purpose door-to-door canvassing category is well-represented: SalesRabbit, Spotio, Knockbase, Knockwise, Solo, Sunbase, Knockio, and Hero by Demand IQ are all available. The category is not empty. The question is what Sunpath provides that they do not — or charge significantly more for.
+
+**Per-roof financial modeling from a bill photo.** Competitors that offer financial modeling present market averages or require manual system-design input. Sunpath's bill capture workflow produces a personalized savings estimate from the homeowner's actual usage and their actual roof geometry in under 15 seconds, using the same NREL dataset the industry uses for proposal generation.
+
+**Neighborhood permit activity as a live rewarm trigger.** Most canvassing tools have no mechanism for surfacing dormant leads when external conditions change. Sunpath monitors public permit feeds and re-ranks parcels when a neighbor pulls a solar permit — one of the strongest real-world signals that a block is ready to convert.
+
+**Open public data throughout.** Several competitors monetize data enrichment as an add-on, sourced from consumer data brokers. Sunpath uses no consumer data. This is not a cost-cutting measure — it is a deliberate architectural choice that eliminates compliance risk for the installer and aligns the product's incentives with the rep's rather than with a data business.
+
+**Genuine offline-first PWA.** Several tools describe themselves as mobile-friendly; fewer are genuinely offline-capable. Sunpath is built as an offline-first Progressive Web App: the full territory map, all parcel data, and all queued door events are stored on-device and remain fully functional without a network connection. This matters in rural markets, in basements, and in the dead zones that show up in every territory.
+
+**No app store dependency.** Sunpath installs from a browser URL. The rep adds it to their home screen once. There is no App Store or Google Play review cycle, no MDM requirement, and no install friction for the manager deploying to a new rep.
+
+What Sunpath deliberately does not do is equally important. Sunpath does not perform homeowner name lookups, pull credit or mortgage data, facilitate AI follow-up calling, collect e-signatures, or generate engineering proposals. These are not oversights — they are out of scope. The product is the field intelligence layer. Post-sale workflow belongs to whatever system the installer already uses.
+
+---
+
+## Getting started
+
+Sunpath is accessed at `https://sunpath.dev`. No installation is required beyond adding the site to the home screen on iOS (Safari) or Android (Chrome). The rep signs in with a one-tap authentication flow — no password to create or forget.
+
+Initial territory setup requires the installer to identify the counties or zip codes their teams work. Parcel data for those areas is ingested from county assessor records and state GIS feeds. A new territory is typically loaded and ready for a walk within one business day of setup.
 
 For pilot inquiries: `pilot@sunpath.dev`.
 
 ---
 
-*Sunpath is built by a small independent team. The source is closed but the design is documented in the open at `sunpath.dev/docs`. We answer technical questions on the record because we'd rather have informed customers than impressed ones.*
+## Technical notes
 
-— *Sunpath, May 2026*
+**Architecture.** Sunpath is a React 18 Progressive Web App built with Vite and served from a static CDN. The backend is Supabase (Postgres + PostGIS + Auth + Edge Functions). All third-party API calls — NREL, NOAA, DSIRE, EIA, Census, Overpass — route through Supabase Edge Functions. No API key ever reaches the device. The browser holds only a scoped anonymous key with row-level security enforced at the database.
+
+**Offline-first.** Map tiles are cached `CacheFirst` with a 30-day TTL. Supabase reads use a `NetworkFirst` strategy with a 4-second timeout, falling back to the local cache. Door events written offline are queued in IndexedDB and replayed in order when connectivity resumes. The sync engine is idempotent — replaying the same event twice produces the same result.
+
+**PWA.** Sunpath is installable on iOS, Android, and desktop without an app store. The service worker handles background sync and push notifications. The app shell loads in under two seconds on a mid-range Android device on a 3G connection.
+
+**Data isolation.** Every database table that contains rep or lead data carries Supabase RLS policies. A rep can read and write only their own records plus team-shared territory. There are no cross-account reads in any code path.
+
+**Open data.** All public data sources used in the knock score are documented in `plan.md` with endpoint, authentication requirements, rate limits, and the date each source was verified. Parcel adapters for county assessor data are implemented per-county in the open-source `parcel-adapters/` directory. The scoring algorithm is in `packages/shared/src/scoring.ts` with a documented weight table.
+
+---
+
+*Sunpath — May 2026*
