@@ -1,0 +1,27 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Example HOA — solar prohibited",
+        "state": "VA",
+        "county": "Scott",
+        "rule_color": "red",
+        "notes": "Bylaws §4.2 — no rooftop arrays visible from street."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-82.6, 36.63],
+            [-82.59, 36.63],
+            [-82.59, 36.64],
+            [-82.6, 36.64],
+            [-82.6, 36.63]
+          ]
+        ]
+      }
+    }
+  ]
+}

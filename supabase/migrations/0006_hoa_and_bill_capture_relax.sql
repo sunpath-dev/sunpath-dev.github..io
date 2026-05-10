@@ -56,6 +56,38 @@ $$;
 
 grant execute on function public.hoa_for_parcel(uuid) to authenticated;
 
+-- Admin upsert helper used by scripts/import-hoa.ts. Service role only.
+create or replace function public.hoa_zone_upsert(
+  p_name text,
+  p_state text,
+  p_county text,
+  p_rule_color text,
+  p_notes text,
+  p_wkt text
+)
+returns uuid
+language plpgsql
+security definer
+as $$
+declare
+  new_id uuid;
+begin
+  insert into public.hoa_zone (name, state, county, rule_color, notes, geom)
+  values (
+    p_name,
+    p_state,
+    p_county,
+    p_rule_color,
+    p_notes,
+    st_setsrid(st_geomfromtext(p_wkt), 4326)
+  )
+  returning id into new_id;
+  return new_id;
+end;
+$$;
+
+grant execute on function public.hoa_zone_upsert(text, text, text, text, text, text) to service_role;
+
 -- bill_capture relaxation ------------------------------------------------
 alter table public.bill_capture
   alter column lead_id drop not null,

@@ -21,7 +21,8 @@
     "test:e2e": "playwright test",
     "build": "pnpm -r build",
     "dev": "pnpm --filter web dev",
-    "ingest:parcels": "tsx scripts/ingest-parcels.ts"
+    "ingest:parcels": "tsx scripts/ingest-parcels.ts",
+    "import:hoa": "tsx scripts/import-hoa.ts"
   },
   "devDependencies": {
     "@sunpath/parcel-adapters": "workspace:*",

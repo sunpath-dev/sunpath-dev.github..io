@@ -6,6 +6,7 @@ import {
   CensusContextSchema,
   IncentivesResponseSchema,
   PvWattsEstimateSchema,
+  renderDoorcardHtml,
   type CensusContext,
   type IncentivesResponse,
   type PvWattsEstimate,
@@ -250,6 +251,33 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
         {estimateError ? (
           <div className="mt-1 text-xs text-red-700">{estimateError}</div>
         ) : null}
+      </section>
+
+      <section className="mb-2">
+        <button
+          type="button"
+          onClick={() => {
+            const html = renderDoorcardHtml({
+              parcel_id: parcel.id,
+              address: parcel.address,
+              score: parcel.existing ? null : parcel.score,
+              est_annual_kwh: estimate?.ac_annual_kwh ?? null,
+              est_annual_savings_usd:
+                estimate?.est_annual_savings_usd ?? null,
+              rep_name: null,
+              origin: window.location.origin,
+            });
+            const w = window.open("", "_blank");
+            if (w) {
+              w.document.open();
+              w.document.write(html);
+              w.document.close();
+            }
+          }}
+          className="w-full rounded border border-amber-500 px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-50"
+        >
+          Open printable doorcard
+        </button>
       </section>
     </div>
   );

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import maplibregl, { Map as MlMap } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { fetchParcelsInBbox, pinsToGeoJSON } from "./repo.js";
+import type { ParcelPin } from "./pins.js";
 import {
   ParcelDetailSheet,
   type ParcelDetail,
@@ -24,6 +25,7 @@ export function TerritoryRoute() {
   const mapRef = useRef<MlMap | null>(null);
   const [parcelCount, setParcelCount] = useState<number>(0);
   const [selected, setSelected] = useState<ParcelDetail | null>(null);
+  const lastPinsRef = useRef<ParcelPin[]>([]);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -127,6 +129,7 @@ export function TerritoryRoute() {
         | maplibregl.GeoJSONSource
         | undefined;
       src?.setData(pinsToGeoJSON(pins));
+      lastPinsRef.current = pins;
       setParcelCount(pins.length);
     };
 
@@ -175,9 +178,19 @@ export function TerritoryRoute() {
       <header className="border-b bg-white p-4">
         <div className="flex items-baseline justify-between">
           <h1 className="text-2xl font-bold">Territory</h1>
-          <span className="text-xs text-slate-500">
-            {parcelCount} parcels in view
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-500">
+              {parcelCount} parcels in view
+            </span>
+            <button
+              type="button"
+              onClick={() => downloadWalkListCsv(lastPinsRef.current)}
+              disabled={parcelCount === 0}
+              className="rounded border border-amber-500 px-2 py-1 text-xs font-semibold text-amber-700 hover:bg-amber-50 disabled:opacity-40"
+            >
+              Export CSV
+            </button>
+          </div>
         </div>
         <p className="text-sm text-slate-600">
           Gate City, VA — Scott County. Pan/zoom to load parcels.
@@ -197,4 +210,43 @@ export function TerritoryRoute() {
       <ParcelDetailSheet parcel={selected} onClose={() => setSelected(null)} />
     </div>
   );
+}
+
+function downloadWalkListCsv(pins: ParcelPin[]): void {
+  if (pins.length === 0) return;
+  const headers = [
+    "id",
+    "address",
+    "lat",
+    "lon",
+    "score",
+    "has_existing_solar",
+    "excluded_reason",
+  ];
+  const rows = pins.map((p) => [
+    p.id,
+    p.address_line1 ?? "",
+    String(p.lat),
+    String(p.lon),
+    p.score == null ? "" : String(p.score),
+    p.has_existing_solar ? "1" : "0",
+    p.excluded_reason ?? "",
+  ]);
+  const csv = [headers, ...rows]
+    .map((row) => row.map(csvCell).join(","))
+    .join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `walk-list-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function csvCell(s: string): string {
+  if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
 }
