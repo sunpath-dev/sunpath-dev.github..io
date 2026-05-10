@@ -16,11 +16,37 @@ export function BillCaptureRoute() {
     "idle",
   );
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [ocrState, setOcrState] = useState<"idle" | "running" | "done" | "error">(
+    "idle",
+  );
+  const [ocrProgress, setOcrProgress] = useState<number>(0);
+  const [ocrError, setOcrError] = useState<string | null>(null);
   const fields: BillFields = useMemo(() => parseBillText(text), [text]);
 
   const canSave =
     !!session?.user.id &&
     (fields.total_kwh !== null || fields.total_amount_usd !== null);
+
+  const onImage = async (file: File) => {
+    setOcrState("running");
+    setOcrProgress(0);
+    setOcrError(null);
+    try {
+      // Lazy-load tesseract so it doesn't bloat the entry chunk.
+      const mod = await import("tesseract.js");
+      const result = await mod.recognize(file, "eng", {
+        logger: (m: { status: string; progress?: number }) => {
+          if (typeof m.progress === "number") setOcrProgress(m.progress);
+        },
+      });
+      const t = result.data.text ?? "";
+      setText((prev) => (prev ? prev + "\n\n" + t : t));
+      setOcrState("done");
+    } catch (err) {
+      setOcrState("error");
+      setOcrError(String(err));
+    }
+  };
 
   const onSave = async () => {
     if (!session?.user.id) return;
@@ -56,10 +82,36 @@ export function BillCaptureRoute() {
       <header className="border-b bg-white p-4">
         <h1 className="text-2xl font-bold">Bill capture</h1>
         <p className="text-sm text-slate-600">
-          Paste bill text below. Fields extract automatically.
+          Snap a photo or paste bill text. Fields extract automatically.
         </p>
       </header>
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="rounded-lg border bg-white p-3 text-xs shadow-sm">
+          <label className="block">
+            <span className="font-medium text-slate-700">Photo of bill</span>
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) void onImage(f);
+              }}
+              className="mt-1 block w-full text-xs text-slate-700 file:mr-3 file:rounded file:border-0 file:bg-amber-500 file:px-3 file:py-1.5 file:text-white file:hover:bg-amber-600"
+            />
+          </label>
+          {ocrState === "running" ? (
+            <p className="mt-2 text-slate-600">
+              OCR running… {Math.round(ocrProgress * 100)}%
+            </p>
+          ) : null}
+          {ocrState === "done" ? (
+            <p className="mt-2 text-green-700">OCR finished — review below.</p>
+          ) : null}
+          {ocrState === "error" ? (
+            <p className="mt-2 text-red-700">OCR failed: {ocrError}</p>
+          ) : null}
+        </div>
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}

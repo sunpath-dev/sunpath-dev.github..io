@@ -22,6 +22,9 @@ const SettingsRoute = lazy(() =>
 const BillCaptureRoute = lazy(() =>
   import("@/modules/bill/index.js").then((m) => ({ default: m.BillCaptureRoute })),
 );
+const CallbackRoute = lazy(() =>
+  import("@/modules/callback/index.js").then((m) => ({ default: m.CallbackRoute })),
+);
 
 function RouteFallback() {
   return (
@@ -33,6 +36,9 @@ function RouteFallback() {
 
 export default function App() {
   const { session, loading } = useAuth();
+  const isCallback =
+    typeof window !== "undefined" &&
+    window.location.hash.startsWith("#/d/");
 
   useEffect(() => {
     if (!session) return;
@@ -44,6 +50,17 @@ export default function App() {
       <div className="flex min-h-dvh items-center justify-center text-slate-500">
         Loading…
       </div>
+    );
+  }
+  // Public callback page works with or without a session — homeowners arrive here.
+  if (isCallback) {
+    return (
+      <Suspense fallback={<RouteFallback />}>
+        <Routes>
+          <Route path="/d/:slug" element={<CallbackRoute />} />
+          <Route path="*" element={<CallbackRoute />} />
+        </Routes>
+      </Suspense>
     );
   }
   if (!session) {
