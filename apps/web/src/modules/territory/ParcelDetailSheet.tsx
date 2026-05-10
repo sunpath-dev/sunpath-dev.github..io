@@ -43,6 +43,13 @@ const DEFAULT_FIPS: Record<string, { state: string; county: string }> = {
   TN: { state: "47", county: "067" },
 };
 
+// Default residential utility rate by state (cents→USD/kWh, 2023 EIA avg).
+// Used when rate-watch-eia hasn't populated utility_rate_observation yet.
+const DEFAULT_RATE_BY_STATE: Record<string, number> = {
+  VA: 0.122,
+  TN: 0.114,
+};
+
 const SYSTEM_KW = 7;
 
 function financialModel(annualKwh: number, rateUsd: number, systemKw: number) {
@@ -121,7 +128,8 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
   const [hoa, setHoa] = useState<HoaBadge | null>(null);
   const [census, setCensus] = useState<CensusContext | null>(null);
   const [rooftop, setRooftop] = useState<RooftopData | null>(null);
-  const [femaZone, setFemaZone] = useState<string | null | "loading">("loading");
+  const [femaZone, setFemaZone] = useState<{ zone: string; label: string; sfha: boolean } | null | "loading">("loading");
+  const [utilityRate, setUtilityRate] = useState<number | null>(null);
   const [triggers, setTriggers] = useState<TriggerCounts | null>(null);
 
   const [showKnockPicker, setShowKnockPicker] = useState(false);
@@ -162,9 +170,31 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
       if (parsed.success) setCensus(parsed.data);
     })();
 
+    // Pull stored utility rate first; fall back to state average.
     void (async () => {
+      let rate = DEFAULT_RATE_BY_STATE[parcel.state] ?? 0.12;
+      const { data: rateRow } = await supabase
+        .from("utility_rate_observation")
+        .select("rate_kwh_usd, period")
+        .eq("state", parcel.state)
+        .eq("sector", "RES")
+        .is("utility_id", null)
+        .order("period", { ascending: false })
+        .limit(1)
+        .single();
+      if (rateRow && typeof (rateRow as { rate_kwh_usd: number }).rate_kwh_usd === "number") {
+        rate = (rateRow as { rate_kwh_usd: number }).rate_kwh_usd;
+      }
+      if (cancelled) return;
+      setUtilityRate(rate);
+
       const { data, error } = await supabase.functions.invoke("pvwatts-fetch", {
-        body: { lat: parcel.lat, lon: parcel.lon, system_capacity_kw: SYSTEM_KW },
+        body: {
+          lat: parcel.lat,
+          lon: parcel.lon,
+          system_capacity_kw: SYSTEM_KW,
+          utility_rate_usd_per_kwh: rate,
+        },
       });
       if (cancelled || error) return;
       const parsed = PvWattsEstimateSchema.safeParse(data);
@@ -196,12 +226,15 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
           body: { lat: parcel.lat, lon: parcel.lon },
         });
         if (cancelled) return;
-        if (error || !data) {
+        if (error || !data || typeof data !== "object") {
           setFemaZone(null);
           return;
         }
-        const zone = typeof data === "object" && "zone" in data ? String((data as Record<string, unknown>)["zone"]) : null;
-        setFemaZone(zone);
+        const d = data as Record<string, unknown>;
+        const zone = typeof d["zone"] === "string" ? d["zone"] : "X";
+        const label = typeof d["label"] === "string" ? d["label"] : zone;
+        const sfha = d["sfha"] === true;
+        setFemaZone({ zone, label, sfha });
       } catch {
         setFemaZone(null);
       }
@@ -211,15 +244,14 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
       const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
       const { data } = await supabase
         .from("trigger_event")
-        .select("event_type, created_at")
-        .eq("county_fips", "169")
-        .gte("created_at", since)
-        .limit(20);
+        .select("kind, fired_at")
+        .gte("fired_at", since)
+        .limit(50);
       if (cancelled || !Array.isArray(data)) return;
-      const rows = data as { event_type: string; created_at: string }[];
-      const permits = rows.filter((r) => r.event_type === "permit").length;
-      const sales = rows.filter((r) => r.event_type === "sale").length;
-      setTriggers({ permits, sales });
+      const rows = data as { kind: string; fired_at: string }[];
+      const permits = rows.filter((r) => r.kind === "permit").length;
+      const sales = rows.filter((r) => r.kind === "sale").length;
+      if (permits > 0 || sales > 0) setTriggers({ permits, sales });
     })();
 
     return () => {
@@ -230,6 +262,7 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
       setCensus(null);
       setRooftop(null);
       setFemaZone("loading");
+      setUtilityRate(null);
       setTriggers(null);
       setShowKnockPicker(false);
       setShowPitches(false);
@@ -240,13 +273,14 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
 
   if (!parcel) return null;
 
+  const effectiveRate =
+    estimate?.est_annual_savings_usd != null && estimate.ac_annual_kwh > 0
+      ? estimate.est_annual_savings_usd / estimate.ac_annual_kwh
+      : (utilityRate ?? DEFAULT_RATE_BY_STATE[parcel?.state ?? ""] ?? 0.12);
+
   const finModel =
-    estimate && estimate.est_annual_savings_usd !== null
-      ? financialModel(
-          estimate.ac_annual_kwh,
-          estimate.est_annual_savings_usd / estimate.ac_annual_kwh,
-          SYSTEM_KW,
-        )
+    estimate
+      ? financialModel(estimate.ac_annual_kwh, effectiveRate, SYSTEM_KW)
       : null;
 
   const handleKnock = async (outcome: DoorOutcome) => {
@@ -345,6 +379,42 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
           ) : null}
         </div>
 
+        {/* LOCATION & RISK — always shown (flood zone, coordinates) */}
+        <section className="mb-3 rounded-lg border bg-white p-3">
+          <h3 className="mb-2 text-sm font-semibold text-slate-900">Location & Risk</h3>
+          <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+            <dt className="text-slate-600">Coordinates</dt>
+            <dd className="text-slate-700">
+              {parcel.lat.toFixed(5)}, {parcel.lon.toFixed(5)}
+            </dd>
+            <dt className="text-slate-600">County (FIPS)</dt>
+            <dd className="text-slate-700">
+              {DEFAULT_FIPS[parcel.state] != null
+                ? `${parcel.state} — ${DEFAULT_FIPS[parcel.state]!.county}`
+                : parcel.state}
+            </dd>
+            <dt className="text-slate-600">Utility rate</dt>
+            <dd className="text-slate-700">
+              {utilityRate != null
+                ? `$${utilityRate.toFixed(3)}/kWh`
+                : `~$${(DEFAULT_RATE_BY_STATE[parcel.state] ?? 0.12).toFixed(3)}/kWh (est.)`}
+            </dd>
+            {femaZone === "loading" ? (
+              <>
+                <dt className="text-slate-600">Flood zone</dt>
+                <dd className="text-slate-400 animate-pulse">Checking FEMA…</dd>
+              </>
+            ) : femaZone !== null ? (
+              <>
+                <dt className="text-slate-600">Flood zone</dt>
+                <dd className={femaZone.sfha ? "font-medium text-orange-700" : "text-slate-700"}>
+                  {femaZone.label}
+                </dd>
+              </>
+            ) : null}
+          </dl>
+        </section>
+
         {/* HOME FACTS */}
         {hasHomeFacts ? (
           <section className="mb-3 rounded-lg border bg-white p-3">
@@ -383,17 +453,6 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
                       ? ` for ${fmt$(parcel.last_sale_price_usd)}`
                       : ""}
                   </dd>
-                </>
-              ) : null}
-              {femaZone === "loading" ? (
-                <>
-                  <dt className="text-slate-600">Flood zone</dt>
-                  <dd className="text-slate-400">Loading…</dd>
-                </>
-              ) : femaZone !== null ? (
-                <>
-                  <dt className="text-slate-600">Flood zone</dt>
-                  <dd>{femaZone}</dd>
                 </>
               ) : null}
             </dl>
@@ -440,14 +499,14 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
               <dd>{estimate.ac_annual_kwh.toLocaleString()} kWh/yr</dd>
               <dt className="text-slate-600">Capacity factor</dt>
               <dd>{(estimate.capacity_factor * 100).toFixed(1)}%</dd>
-              {estimate.est_annual_savings_usd !== null ? (
-                <>
-                  <dt className="text-slate-600">Est. savings/yr</dt>
-                  <dd className="font-medium text-green-700">
-                    {fmt$(estimate.est_annual_savings_usd)}/yr
-                  </dd>
-                </>
-              ) : null}
+              <dt className="text-slate-600">Rate used</dt>
+              <dd className="text-slate-700">
+                ${effectiveRate.toFixed(3)}/kWh
+              </dd>
+              <dt className="text-slate-600">Est. savings/yr</dt>
+              <dd className="font-medium text-green-700">
+                {fmt$(estimate.ac_annual_kwh * effectiveRate)}/yr
+              </dd>
             </dl>
           </section>
         ) : null}

@@ -56,6 +56,30 @@ const SAT_STYLE: maplibregl.StyleSpecification = {
   layers: [{ id: "satellite", type: "raster", source: "satellite" }],
 };
 
+function buildMapFilter(
+  minScore: number,
+  maxScore: number,
+  hideExisting: boolean,
+  ownerOccOnly: boolean,
+): unknown[] | null {
+  const conditions: unknown[] = ["all"];
+  if (hideExisting) conditions.push(["!=", ["get", "existing"], 1]);
+  if (minScore > 0 || maxScore < 100) {
+    // Score filter exempts existing-solar pins (score=-1) unless hideExisting is on.
+    conditions.push([
+      "any",
+      ...(hideExisting ? [] : [["==", ["get", "existing"], 1]]),
+      [
+        "all",
+        [">=", ["get", "score"], minScore],
+        ["<=", ["get", "score"], maxScore],
+      ],
+    ]);
+  }
+  if (ownerOccOnly) conditions.push(["==", ["get", "owner_occ"], 1]);
+  return conditions.length > 1 ? conditions : null;
+}
+
 export function TerritoryRoute() {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MlMap | null>(null);
@@ -65,6 +89,14 @@ export function TerritoryRoute() {
   const [isSatellite, setIsSatellite] = useState(false);
   const [searchParams] = useSearchParams();
   const geocodeLabel = isFinite(parseFloat(searchParams.get("lat") ?? "")) ? searchParams.get("q") : null;
+
+  // Filter panel state
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [minScore, setMinScore] = useState(0);
+  const [maxScore, setMaxScore] = useState(100);
+  const [hideExisting, setHideExisting] = useState(false);
+  const [ownerOccOnly, setOwnerOccOnly] = useState(false);
+  const filterRef = useRef({ minScore: 0, maxScore: 100, hideExisting: false, ownerOccOnly: false });
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -123,6 +155,13 @@ export function TerritoryRoute() {
           "circle-opacity": 0.85,
         },
       });
+      const f = buildMapFilter(
+        filterRef.current.minScore,
+        filterRef.current.maxScore,
+        filterRef.current.hideExisting,
+        filterRef.current.ownerOccOnly,
+      );
+      if (f) map.setFilter("parcels-circle", f as maplibregl.FilterSpecification);
     });
 
     let cancelled = false;
@@ -195,6 +234,16 @@ export function TerritoryRoute() {
       mapRef.current = null;
     };
   }, []);
+
+  // Apply MapLibre filter whenever filter state changes.
+  useEffect(() => {
+    filterRef.current = { minScore, maxScore, hideExisting, ownerOccOnly };
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded()) return;
+    if (!map.getLayer("parcels-circle")) return;
+    const f = buildMapFilter(minScore, maxScore, hideExisting, ownerOccOnly);
+    map.setFilter("parcels-circle", f as maplibregl.FilterSpecification | null);
+  }, [minScore, maxScore, hideExisting, ownerOccOnly]);
 
   // Fly to geocoded address, then open the nearest parcel detail sheet.
   useEffect(() => {
@@ -318,6 +367,13 @@ export function TerritoryRoute() {
       if (lastPinsRef.current.length > 0) {
         src?.setData(pinsToGeoJSON(lastPinsRef.current));
       }
+      const f = buildMapFilter(
+        filterRef.current.minScore,
+        filterRef.current.maxScore,
+        filterRef.current.hideExisting,
+        filterRef.current.ownerOccOnly,
+      );
+      if (f) map.setFilter("parcels-circle", f as maplibregl.FilterSpecification);
     });
   }, [isSatellite]);
 
@@ -368,16 +424,79 @@ export function TerritoryRoute() {
         {geocodeLabel && (
           <p className="mt-1 text-xs text-amber-700">📍 {geocodeLabel}</p>
         )}
-        <div className="mt-2 flex items-center gap-2 text-[11px] text-slate-500">
-          <span className="inline-block h-2 w-2 rounded-full bg-amber-200" />
-          <span>cold</span>
-          <span className="inline-block h-2 w-2 rounded-full bg-amber-400" />
-          <span className="inline-block h-2 w-2 rounded-full bg-orange-500" />
-          <span className="inline-block h-2 w-2 rounded-full bg-red-700" />
-          <span>hot</span>
-          <span className="ml-3 inline-block h-2 w-2 rounded-full bg-slate-400" />
-          <span>existing solar</span>
+        <div className="mt-2 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 text-[11px] text-slate-500">
+            <span className="inline-block h-2 w-2 rounded-full bg-amber-200" />
+            <span>cold</span>
+            <span className="inline-block h-2 w-2 rounded-full bg-amber-400" />
+            <span className="inline-block h-2 w-2 rounded-full bg-orange-500" />
+            <span className="inline-block h-2 w-2 rounded-full bg-red-700" />
+            <span>hot</span>
+            <span className="ml-2 inline-block h-2 w-2 rounded-full bg-slate-400" />
+            <span>existing solar</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setFilterOpen((v) => !v)}
+            className={[
+              "rounded border px-2 py-0.5 text-[11px] font-semibold",
+              filterOpen || minScore > 0 || maxScore < 100 || hideExisting || ownerOccOnly
+                ? "border-amber-500 bg-amber-500 text-white"
+                : "border-slate-300 text-slate-500 hover:border-amber-500 hover:text-amber-700",
+            ].join(" ")}
+          >
+            Filters {(minScore > 0 || maxScore < 100 || hideExisting || ownerOccOnly) ? "●" : ""}
+          </button>
         </div>
+
+        {/* Filter panel */}
+        {filterOpen && (
+          <div className="mt-2 rounded border bg-slate-50 p-3 space-y-2 text-xs">
+            <div className="flex items-center gap-2">
+              <span className="w-20 text-slate-600 shrink-0">Score ≥</span>
+              <input
+                type="range" min={0} max={100} step={5} value={minScore}
+                onChange={(e) => setMinScore(Math.min(Number(e.target.value), maxScore))}
+                className="flex-1 accent-amber-500"
+              />
+              <span className="w-8 text-right font-mono text-slate-700">{minScore}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-20 text-slate-600 shrink-0">Score ≤</span>
+              <input
+                type="range" min={0} max={100} step={5} value={maxScore}
+                onChange={(e) => setMaxScore(Math.max(Number(e.target.value), minScore))}
+                className="flex-1 accent-amber-500"
+              />
+              <span className="w-8 text-right font-mono text-slate-700">{maxScore}</span>
+            </div>
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox" checked={hideExisting}
+                onChange={(e) => setHideExisting(e.target.checked)}
+                className="accent-amber-500"
+              />
+              <span className="text-slate-700">Hide existing solar installations</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox" checked={ownerOccOnly}
+                onChange={(e) => setOwnerOccOnly(e.target.checked)}
+                className="accent-amber-500"
+              />
+              <span className="text-slate-700">Owner-occupied only</span>
+            </label>
+            {(minScore > 0 || maxScore < 100 || hideExisting || ownerOccOnly) && (
+              <button
+                type="button"
+                onClick={() => { setMinScore(0); setMaxScore(100); setHideExisting(false); setOwnerOccOnly(false); }}
+                className="text-amber-700 underline underline-offset-2 text-[11px]"
+              >
+                Clear filters
+              </button>
+            )}
+          </div>
+        )}
       </header>
       <div ref={containerRef} className="flex-1" />
       <ParcelDetailSheet parcel={selected} onClose={() => setSelected(null)} />

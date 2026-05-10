@@ -87,23 +87,55 @@ export function TodayRoute() {
   }, [geo]);
 
   useEffect(() => {
-    supabase
-      .from("parcel")
-      .select("id, address_line1, city, knock_score")
-      .order("knock_score", { ascending: false })
-      .limit(5)
-      .then(({ data }) => {
-        if (!data) return;
-        setTopDoors(
-          data.map((p) => ({
-            id: p.id as string,
-            address_line1: p.address_line1 as string,
-            city: p.city as string,
-            knock_score: (p.knock_score as number | null) ?? 0,
-            trigger_reason: null,
-          })),
-        );
-      });
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase
+        .from("parcel")
+        .select("id, address_line1, city, knock_score")
+        .order("knock_score", { ascending: false })
+        .limit(5);
+      if (cancelled || !data) return;
+
+      const parcelIds = data.map((p) => p.id as string);
+      const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      const { data: triggers } = await supabase
+        .from("trigger_event")
+        .select("parcel_id, kind, fired_at")
+        .in("parcel_id", parcelIds)
+        .gte("fired_at", since)
+        .order("fired_at", { ascending: false })
+        .limit(20);
+      if (cancelled) return;
+
+      const triggerMap = new Map<string, string>();
+      if (Array.isArray(triggers)) {
+        for (const t of triggers as { parcel_id: string; kind: string; fired_at: string }[]) {
+          if (!triggerMap.has(t.parcel_id)) {
+            const daysAgo = Math.round(
+              (Date.now() - new Date(t.fired_at).getTime()) / 86_400_000,
+            );
+            const kindLabel =
+              t.kind === "permit"
+                ? "solar permit"
+                : t.kind === "sale"
+                  ? "nearby sale"
+                  : t.kind;
+            triggerMap.set(t.parcel_id, `${kindLabel} ${daysAgo}d ago`);
+          }
+        }
+      }
+
+      setTopDoors(
+        data.map((p) => ({
+          id: p.id as string,
+          address_line1: p.address_line1 as string,
+          city: p.city as string,
+          knock_score: (p.knock_score as number | null) ?? 0,
+          trigger_reason: triggerMap.get(p.id as string) ?? null,
+        })),
+      );
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
