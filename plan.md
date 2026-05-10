@@ -42,6 +42,271 @@ It's specifically the **field intelligence layer** between the rep's phone and t
 
 ---
 
+## UI flow & screen mockups
+
+User flow: **sign-on → Today dashboard → tools (map, walk list, bill, etc.)**.
+
+Phone ≈ 360px · Tablet ≈ 768px · Desktop ≈ 1200px. Two-pane on tablet, three-pane on desktop where real estate allows.
+
+---
+
+### Screen 1 — Sign-on
+
+```
+PHONE                          TABLET                                  DESKTOP
+┌───────────────────────┐      ┌──────────────────────────────────┐   ┌────────────────────────────────────────────┐
+│                       │      │                                  │   │                                            │
+│       Sunpath         │      │             Sunpath              │   │                  Sunpath                   │
+│  Field intel for      │      │   Field intelligence for solar   │   │     Field intelligence for solar reps.     │
+│   solar reps.         │      │             reps.                │   │                                            │
+│                       │      │                                  │   │       ┌──────────────────────────┐         │
+│   [▶ Enter the app]   │      │     [▶ Enter the app]            │   │       │     ▶ Enter the app      │         │
+│                       │      │                                  │   │       └──────────────────────────┘         │
+│                       │      │   (Future: email + password)     │   │       Future: email + password here        │
+└───────────────────────┘      └──────────────────────────────────┘   └────────────────────────────────────────────┘
+```
+
+---
+
+### Screen 2 — Today dashboard (default landing)
+
+```
+PHONE                                TABLET (2-col)                                 DESKTOP (sidebar + main)
+┌───────────────────────────────┐    ┌────────────────────────────────────────┐    ┌─────────────────────────────────────────────────────────┐
+│ Today · Mon May 11            │    │ Today · Mon May 11                     │    │ ┌──────────┐ Today · Monday May 11                       │
+│ ☀ 72°F clear · wind 5mph N   │    │ ☀ 72°F · wind 5mph N · sunset 8:14    │    │ │ Sunpath  │ ┌─────────────┬───────────────────────────┐  │
+│ Sunset 8:14 · 3h walk left   │    │ ─────────────────────────────────────  │    │ │ ▲ Today  │ │ NOW         │ FORECAST · Mon              │  │
+├───────────────────────────────┤    │ ┌─────────────────┐ ┌────────────────┐│    │ │  Map     │ │ ☀ 72°F      │ High 78° / Low 54°          │  │
+│ 🔍 Type address...            │    │ │ NOW  ☀ 72°F     │ │ FORECAST       ││    │ │  Walk    │ │ wind 5mph   │ Precip 0% · Wind 8mph       │  │
+├───────────────────────────────┤    │ │ wind 5mph N     │ │ High 78° low 54││    │ │  Bill    │ │ 3h daylight │ Sunrise 6:24 · Sunset 8:14  │  │
+│ FORECAST                      │    │ │ Sunset 8:14     │ │ Precip 0%      ││    │ │  Settings│ └─────────────┴───────────────────────────┘  │
+│ High 78° / Low 54°            │    │ └─────────────────┘ └────────────────┘│    │ │          │ 🔍 Type an address...                         │
+│ Precip 0% · Wind 8mph         │    │ 🔍 Type an address...                  │    │ │          │ ──────────────────────────────────────────── │
+│ Walkability ★★★              │    │ ──────────────────────────────────────  │    │ │          │ TOP DOORS TO REVISIT (5)                     │
+├───────────────────────────────┤    │ TOP DOORS TO REVISIT (5)                │    │ │          │ 🔴 142 Maple St    score 92  permit 1 day ago│
+│ TOP DOORS TO REVISIT          │    │ 🔴 142 Maple St   score 92  permit 1d  │    │ │          │ 🟠 88 Oak Ave      score 78  sold last week  │
+│ 🔴 142 Maple — neighbor       │    │ 🟠 88 Oak Ave     score 78  sold       │    │ │          │ 🟡 14 Cherry Ln    score 64  callback due    │
+│   solar permit 1d ago         │    │ 🟡 14 Cherry Ln   score 64  callback   │    │ │          │ 🟢 7 Pine Ct       score 58  rate hike       │
+│ 🟠 88 Oak Ave — sold last wk  │    │ 🟢 7 Pine Ct      score 58  rate hike  │    │ │          │ ──────────────────────────────────────────── │
+│ 🟡 14 Cherry — callback due   │    │ ──────────────────────────────────────  │    │ │          │ 12 doors today · 47 this week · 💬 Pitches  │
+│ ─────────────────────────────│    │ [▶ Start walking] [🗺 Map] [📋 List]   │    │ │          │ [▶ Start walking] [🗺 Map] [📋 Walk list]    │
+│ 12 doors today · 💬 Pitches   │    │                                        │    │ └──────────┘                                              │
+│ [▶ Start walking]             │    │ [Today][Map][Walk][Bill][⚙]            │    └─────────────────────────────────────────────────────────┘
+│ [🗺 Map] [📋 Walk list]       │    └────────────────────────────────────────┘
+│ [Today][Map][Walk][Bill][⚙]   │
+└───────────────────────────────┘
+```
+
+---
+
+### Screen 3 — Map (territory)
+
+```
+PHONE                                TABLET (split: list + map)                    DESKTOP (3-pane: nav + map + detail)
+┌───────────────────────────────┐    ┌────────────────────────────────────────┐    ┌─────────────────────────────────────────────────────────┐
+│ ← Map · Gate City, VA         │    │ Map · Gate City, VA  [Filters ▼] [🛰]  │    │ ┌──────────┐ Map  🔍 search  [Filters ▼]  [🛰 Satellite]  │
+│ 🔍 search · [Filters ▼] [🛰] │    │ ┌──────────────┬─────────────────────┐ │    │ │  Today   │ ┌─────────────────────────┬─────────────────┐│
+│ 47 parcels · cold ●●●● hot    │    │ │ TOP IN VIEW  │   ●●  ●●           ││    │ │ ▲ Map    │ │   ●●●  ●●               │ 142 Maple St    ││
+├───────────────────────────────┤    │ │ 🔴 142 Maple │  ●  ●  ●●●         ││    │ │  Walk    │ │  ● ● ● ● ●●●            │ score 92        ││
+│                               │    │ │   score 92   │ ●●● ●●● ● ●        ││    │ │  Bill    │ │   ● ●● ●●●  ●           │ Built 1987      ││
+│      ●●  ●●  ●                │    │ │ 🟠 88 Oak    │  ● ●●  ● ● ●       ││    │ │  Settings│ │  ● ●  ●● ●● ● ●         │ 1,420 sqft      ││
+│     ●  ●  ●●●                 │    │ │   score 78   │   ●●● ●●  ●        ││    │ │          │ │  Gate City, VA          │ Assessed $142k  ││
+│    ●●● ●●● ● ●                │    │ │ 🟡 14 Cherry │ ─────────────────  ││    │ │          │ │ ──────────────────────  │ Orientation: S  ││
+│     ● ●●  ● ●                 │    │ │   score 64   │ score 60-100        ││    │ │          │ │ score 60-100 owner-occ  │ FEMA: zone X    ││
+│    ●●● ●●●  ●                 │    │ │ 🟢 7 Pine    │ ☑ owner-occupied    ││    │ │          │ │                         │ Census: 78% own ││
+│                               │    │ │   score 58   │ ☐ has solar         ││    │ │          │ │                         │ Utility AEP     ││
+│ Gate City · 47 parcels        │    │ └──────────────┴─────────────────────┘ │    │ │          │ │                         │ $0.142/kWh +9%  ││
+├───────────────────────────────┤    │ [Today][Map][Walk][Bill][⚙]            │    │ │          │ │                         │ Sun 4.8 hrs/day ││
+│ [Today][Map][Walk][Bill][⚙]   │    └────────────────────────────────────────┘    │ │          │ │                         │ [Knock][Doorca] ││
+└───────────────────────────────┘                                                   │ └──────────┘ └─────────────────────────┴─────────────────┘│
+                                                                                    └─────────────────────────────────────────────────────────┘
+```
+
+🛰 = satellite/aerial basemap toggle (free ESRI World Imagery tiles). Detail sheet on phone slides up from bottom when a dot is tapped.
+
+---
+
+### Screen 4 — Parcel detail sheet (data showcase — heart of the app)
+
+```
+PHONE (bottom sheet, 70vh)              TABLET (right rail)                       DESKTOP (right rail, 3-pane)
+┌───────────────────────────────┐       ┌──────────────────────────────┐          ┌────────────────────────────────────┐
+│ 142 Maple St           [✕]    │       │ 142 Maple St          [✕]    │          │ 142 Maple St                 [✕]   │
+│ Gate City, VA 24251           │       │ Gate City, VA 24251          │          │ Gate City, VA 24251 · 36.62, -82.59│
+│ ─────────────────────────────│       │ ───────────────────────────  │          │ ─────────────────────────────────  │
+│ KNOCK SCORE  92 / 100         │       │ KNOCK SCORE  92 / 100        │          │ KNOCK SCORE  92 / 100  HOA: green ●│
+│ HOA: green ●                  │       │ HOA: Maple Hills · solar OK  │          │ ─────────────────────────────────  │
+│ ─────────────────────────────│       │ ───────────────────────────  │          │ HOME FACTS                         │
+│ HOME FACTS                    │       │ HOME FACTS                   │          │  Built 1987 · 1,420 sqft           │
+│ Built 1987 · 1,420 sqft       │       │  Built 1987 · 1,420 sqft     │          │  Orientation: South                │
+│ Orientation: South            │       │  Orientation: South          │          │  Assessed $142,000                 │
+│ Assessed $142,000             │       │  Assessed $142,000           │          │  Last sold 2018-04-15 · $128,000   │
+│ Last sold 2018 · $128k        │       │  Last sold 2018 · $128,000   │          │  FEMA flood zone: X (low risk)     │
+│ FEMA flood zone: X            │       │  FEMA flood zone: X (low)    │          │ ─────────────────────────────────  │
+│ ─────────────────────────────│       │ ───────────────────────────  │          │ AREA CONTEXT (Census)              │
+│ AREA CONTEXT (Census)         │       │ AREA CONTEXT                 │          │  78% owner-occupied                │
+│ 78% owner-occupied            │       │  78% owner-occupied          │          │  Median income $52,400             │
+│ Med income $52,400            │       │  Median income $52,400       │          │  Median home $115,200              │
+│ Med home $115,200             │       │  Median home $115,200        │          │  Energy burden 4.8% · Broadband 79%│
+│ Energy burden 4.8%            │       │  Energy burden 4.8%          │          │ ─────────────────────────────────  │
+│ ─────────────────────────────│       │  Broadband adoption 79%      │          │ ENERGY & SOLAR                     │
+│ ENERGY & SOLAR                │       │ ───────────────────────────  │          │  Utility: AEP Appalachian Power    │
+│ Utility: AEP                  │       │ ENERGY & SOLAR               │          │  Rate: $0.142/kWh · +9.1% YoY     │
+│ Rate: $0.142/kWh (+9% YoY)    │       │  Utility: AEP Power          │          │  NREL annual sun: 4.8 hrs/day      │
+│ Sun 4.8 hrs/day (NREL)        │       │  Rate: $0.142/kWh +9.1% YoY  │          │  PVWatts (7kW): 9,840 kWh/yr       │
+│ ─────────────────────────────│       │  Annual sun: 4.8 hrs/day     │          │   ≈ $1,400/yr savings @ current rate│
+│ ROOF ANALYSIS (Google Solar)  │       │ ───────────────────────────  │          │ ─────────────────────────────────  │
+│ S-facing · 940 sqft viable    │       │ ROOF ANALYSIS                │          │ ROOF ANALYSIS (Google Solar API)   │
+│ Max system 7.2 kW · 18 panels │       │  S-facing · 940 sqft viable  │          │  S-facing · 940 sqft viable        │
+│ ─────────────────────────────│       │  Max 7.2 kW · 18 panels      │          │  Max system 7.2 kW · 18 panels     │
+│ FINANCIAL MODEL               │       │ ───────────────────────────  │          │ ─────────────────────────────────  │
+│ $1,400/yr savings             │       │ FINANCIAL MODEL              │          │ FINANCIAL MODEL                    │
+│ Payback 8.4 yrs (with 30% ITC)│       │  $1,400/yr savings           │          │  $1,400/yr savings (at current rate)│
+│ 25-yr net savings: $18,900    │       │  Payback 8.4 yrs w/ ITC      │          │  Payback 8.4 yrs (with 30% ITC)    │
+│ ─────────────────────────────│       │  25-yr net: $18,900          │          │  25-yr net savings: ~$18,900       │
+│ INCENTIVES                    │       │ ───────────────────────────  │          │ ─────────────────────────────────  │
+│ ITC 30% federal               │       │ INCENTIVES                   │          │ INCENTIVES                         │
+│ + VA Solar Rebate 25%         │       │  ITC 30% federal credit      │          │  ITC 30% federal investment tax    │
+│ + Net metering: yes (1:1)     │       │  VA Solar Rebate 25%         │          │   credit (no cap; through 2032)    │
+│ ─────────────────────────────│       │  Net metering: yes (1:1)     │          │  VA Solar Rebate 25% (state)       │
+│ NEIGHBORHOOD PROOF            │       │ ───────────────────────────  │          │  Net metering: yes (1:1)           │
+│ ◆ 3 solar permits ¼ mi 30d    │       │ NEIGHBORHOOD PROOF           │          │ ─────────────────────────────────  │
+│ ◆ 2 home sales · median $135k │       │  ◆ 3 solar permits ¼ mi 30d  │          │ NEIGHBORHOOD PROOF                 │
+│ ─────────────────────────────│       │  ◆ 2 sales · median $135k    │          │  ◆ 3 neighbor solar permits ¼ mi   │
+│ [▶ Knock] [🖨 Doorcard] [💬]  │       │ ───────────────────────────  │          │  ◆ 2 home sales nearby · med $135k │
+└───────────────────────────────┘       │ [▶ Knock] [🖨 Doorcard] [💬] │          │ ─────────────────────────────────  │
+                                        └──────────────────────────────┘          │ [▶ Knock this door] [🖨 Doorcard]  │
+                                                                                  │ [💬 Pitch scripts]                 │
+                                                                                  └────────────────────────────────────┘
+```
+
+Every section fails open — if a source is down, that section doesn't render. Ambient mode (geocoder fallback, no parcel match): hides Knock score, HOA, incentives; still shows Census + PVWatts + flood zone at the geocoded coords. 💬 = pitch script / objection cheat sheet panel.
+
+---
+
+### Screen 5 — Walk list
+
+```
+PHONE                                TABLET (split: list + detail)                  DESKTOP (3-pane)
+┌───────────────────────────────┐    ┌────────────────────────────────────────┐    ┌─────────────────────────────────────────────────────────┐
+│ Walk list · Mon May 11        │    │ Walk list · Mon May 11  ☀ 72°F · 3h   │    │ ┌──────────┐ Walk list · Mon May 11  ☀ 72°F · 3h day     │
+│ ☀ 72°F clear · 3h daylight   │    │ ┌──────────────────┬─────────────────┐ │    │ │  Today   │ ┌────────────────────┬─────────────────────┐  │
+│ Sort: ▼ score                 │    │ │ Sort: ▼ score    │ TAPPED PARCEL   ││    │ │  Map     │ │ Sort: ▼ score      │ 142 Maple St (open) │  │
+├───────────────────────────────┤    │ │ ─────────────── │ 142 Maple St    ││    │ │ ▲ Walk   │ │ ─────────────────  │ Built 1987 · S-face │  │
+│ 🔴 142 Maple St      92       │    │ │ 🔴 142 Maple 92  │ score 92        ││    │ │  Bill    │ │ 🔴 142 Maple   92  │ Assessed $142k      │  │
+│   ¼ mi · 4 min walk           │    │ │ 🟠 88 Oak    78  │ HOA green       ││    │ │  Settings│ │ 🟠 88 Oak      78  │ DISPOSITION         │  │
+│ 🟠 88 Oak Ave        78       │    │ │ 🟡 14 Cherry 64  │ Built 1987      ││    │ │          │ │ 🟡 14 Cherry   64  │ ┌──────────┬──────┐ │  │
+│   0.3 mi · 6 min walk         │    │ │ 🟢 7 Pine    58  │ DISPOSITION     ││    │ │          │ │ 🟢 7 Pine      58  │ │No answer │Soft  │ │  │
+│ 🟡 14 Cherry Ln      64       │    │ │              │   │ ┌─────┬─────┐  ││    │ │          │ │ 🟢 33 Birch    55  │ │Hard no   │no    │ │  │
+│   0.5 mi · 10 min walk        │    │ │              │   │ │No   │Soft │  ││    │ │          │ │                    │ │Callback  │Sit   │ │  │
+│ 🟢 7 Pine Ct         58       │    │ │              │   │ │ans  │ no  │  ││    │ │          │ │                    │ │Sale      │      │ │  │
+│ ─────────────────────────────│    │ │              │   │ ├─────┼─────┤  ││    │ │          │ │                    │ └──────────┴──────┘ │  │
+│ Tap a row → detail + buttons  │    │ │              │   │ │Hard │Call │  ││    │ │          │ │                    │ [▶ Next door]       │  │
+├───────────────────────────────┤    │ │              │   │ ├─────┼─────┤  ││    │ └──────────┘ └────────────────────┴─────────────────────┘ │
+│ [Today][Map][▲ Walk][Bill][⚙] │    │ │              │   │ │Sit  │Sale │  ││    └─────────────────────────────────────────────────────────┘
+└───────────────────────────────┘    │ │              │   │ └─────┴─────┘  ││
+                                     │ │              │   │ [Next door →]  ││
+                                     │ └──────────────┴───┴────────────────┘│
+                                     └────────────────────────────────────────┘
+```
+
+6 disposition buttons: No Answer / Soft No / Hard No / Callback / Sit / Sale. "Next door →" advances to next unworked parcel by score.
+
+---
+
+### Screen 6 — Bill capture (3 input modes, zero PII)
+
+```
+PHONE                                TABLET                                          DESKTOP
+┌───────────────────────────────┐    ┌────────────────────────────────────────┐    ┌─────────────────────────────────────────────────────────┐
+│ Bill capture                  │    │ Bill capture                           │    │ ┌──────────┐ Bill capture                                  │
+│ Linked to: 142 Maple St       │    │ Linked to: 142 Maple St                │    │ │  Today   │ Linked to: 142 Maple St                       │
+│ ─────────────────────────────│    │ ┌──────────────────┬─────────────────┐ │    │ │  Map     │ ┌──────────────────────┬───────────────────┐ │
+│ [📷 Photo][📁 File][✎ Manual] │    │ │ INPUT            │ PARSED FIELDS   │ │    │ │  Walk    │ │ ┌──────┬──────┬─────┐│ PARSED FIELDS     │ │
+│ ─────────────────────────────│    │ │ [📷][📁][✎ Man]  │ Utility:  AEP   │ │    │ │ ▲ Bill   │ │ │📷 Pho│📁 Fil│✎ Man││ Utility:  AEP     │ │
+│ [Selected: ✎ Manual entry]    │    │ │                  │ Total kWh: 1,140│ │    │ │  Settings│ │ └──────┴──────┴─────┘│ Total kWh: 1,140  │ │
+│ Utility:  [AEP_______]        │    │ │ Utility: AEP     │ Rate: $0.142    │ │    │ │          │ │ Utility: [AEP_____]  │ Rate: $0.142/kWh  │ │
+│ Total kWh: [1140____]         │    │ │ Total kWh: 1140  │ Total: $162.13  │ │    │ │          │ │ kWh: [1140_______]  │ Total: $162.13    │ │
+│ Rate $/kWh: [0.142__]         │    │ │ Rate: 0.142      │ Period:         │ │    │ │          │ │ Rate: [0.142_____]  │ Period: Apr-May   │ │
+│ Total $: [162.13___]          │    │ │ Total: 162.13    │  Apr 12 - May 11│ │    │ │          │ │ Total $: [162.13__] │ ─────────────────│ │
+│ Period: [Apr 12-May 11]       │    │ │ Period: Apr12-   │ ─────────────── │ │    │ │          │ │ Period: [Apr12-May] │ Annualized:       │ │
+│ [💾 Save]                     │    │ │   May11          │ Annualized      │ │    │ │          │ │ [💾 Save]           │  ≈13,680 kWh/yr   │ │
+│ ⓘ No personal info stored.    │    │ │ [💾 Save]        │  ≈13,680 kWh/yr │ │    │ │          │ │                      │ Cross-check:      │ │
+│   Only kWh, rate, dates       │    │ │                  │ Cross-check:    │ │    │ │          │ │                      │  PVWatts 9,840    │ │
+│   linked to this address.     │    │ │                  │  PVWatts 9,840  │ │    │ │          │ │                      │  → ~$1,400 saved  │ │
+├───────────────────────────────┤    │ │                  │  → ~$1,400 saved│ │    │ │          │ │                      │ ⓘ Addr-linked,    │ │
+│ [Today][Map][Walk][▲Bill][⚙]  │    │ │                  │ ⓘ No PII saved. │ │    │ │          │ │                      │   no PII saved.   │ │
+└───────────────────────────────┘    │ └──────────────────┴─────────────────┘ │    │ └──────────┘ └──────────────────────┴───────────────────┘ │
+                                     └────────────────────────────────────────┘    └─────────────────────────────────────────────────────────┘
+```
+
+All 3 modes feed the same `redactBillText` + parser pipeline; only parsed numerics persist. Linked to `parcel_id` (address), not a person.
+
+---
+
+### Screen 7 — Pipeline (deemphasized — sub-route, not a tab)
+
+```
+PHONE                              TABLET / DESKTOP
+┌──────────────────────────────┐   ┌──────────────────────────────────────────────────────┐
+│ ← Pipeline                   │   │ ← Pipeline (sub-route under Today → "View pipeline") │
+│ ───────────────────────────  │   │ ───────────────────────────────────────────────────  │
+│ LEAD (3)                     │   │ LEAD (3)         SIT (2)          SOLD (1)           │
+│  142 Maple                   │   │  142 Maple       55 Hickory       88 Oak (sold 5/3)  │
+│  88 Oak  · 7 Pine            │   │  88 Oak          14 Cherry                           │
+│ SIT (2) · SOLD (1)           │   │ INSTALLED (0)    PAID (0)                            │
+└──────────────────────────────┘   └──────────────────────────────────────────────────────┘
+```
+
+Removed from bottom nav by default. Reachable from Today dashboard or Settings → "Show Pipeline tab".
+
+---
+
+### Screen 8 — Settings
+
+```
+PHONE                              TABLET / DESKTOP
+┌──────────────────────────────┐   ┌──────────────────────────────────────────────────────┐
+│ Settings                     │   │ Settings                                             │
+│ ───────────────────────────  │   │ ──────────────────────────────────────────────────── │
+│ Rep ID: poc-abc123 (POC)     │   │ Rep ID: poc-abc123 (POC mode)                        │
+│ Push notifications: [opt-in] │   │ Push notifications: [✔ enabled]                      │
+│ Show Pipeline tab: [☐]       │   │ Show Pipeline tab: [☐]                               │
+│ Sign out                     │   │ Auth method: [Future: email + password]               │
+└──────────────────────────────┘   └──────────────────────────────────────────────────────┘
+```
+
+---
+
+## Competitive landscape — what we add vs. skip
+
+Researched: SalesRabbit, Spotio, Sunbase, Solo, Knockbase, Knockwise, Hero by Demand IQ, Knockio.
+
+### What we're adding (Tier-1)
+
+| # | Feature | Notes |
+|---|---|---|
+| C1 | **Google Solar API** — per-roof segments, pitch, area, annual sun exposure, max panel count | Free API. Competitors charge $49+/mo for the equivalent (SalesRabbit, Aurora). Edge function `solar-rooftop/`. |
+| C2 | **Satellite / aerial basemap toggle** (🛰) | ESRI World Imagery, free tiles, ~30 lines. Rep shows homeowner their own roof mid-conversation. |
+| C3 | **Pitch script + objection cheat sheet** (💬 panel) | Every competitor mentions it. Static markdown, editable in `apps/web/src/content/pitches.md`. |
+| C4 | **Financial model** — $/yr saved, payback with ITC, 25-yr savings | All inputs already in PVWatts call. ~50 lines of math in `packages/shared/src/finance.ts`. |
+| C5 | **Sunset countdown + daylight remaining** | Solar reps walk until dark; "3h walk left" is a real planning input. From NWS astronomy endpoint. |
+| C6 | **Roof age proxy** from permit history | New roof + rate hike = best pitch. Framework exists in `triggers-scan-permits/`; fill the empty ADAPTERS array. |
+| C7 | **Doors knocked today + streak** counter | "12 doors today · 47 this week". Lightest gamification. Reads `door_event` count by date. |
+
+### What we deliberately don't copy (and why)
+
+| Feature | Why not |
+|---|---|
+| Homeowner name / income / mortgage / credit (SalesRabbit DataGrid, Spotio "200 data points") | Conflicts with zero-PII posture. Their moat is consumer data brokerage; ours is open-data intelligence. This is a feature, not a gap — it belongs in the README "What we don't store" section. |
+| AI follow-up calling | Requires homeowner phone numbers (PII). Out of scope. |
+| E-signature / contract on porch | CRM/closing tool downstream. Out of scope. |
+| Multi-rep leaderboards | Single-rep POC. Schema supports `rep_id`; revisit post-POC. |
+| "Do Not Knock" registry | No federal source; per-rep flags risk creating a homeowner profile (PII). Skip. |
+| Mortgage / equity / credit data | PII. Skip. |
+
+---
+
 ## Phase 0 — Skeleton (foundation)
 
 Goal: rep can install the PWA on his phone, log in, and see a MapLibre map of his territory.

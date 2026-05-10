@@ -7,6 +7,9 @@ import { useAuth } from "@/lib/auth.js";
 import { startSyncEngine } from "@/lib/sync.js";
 
 // Lazy-load module routes so MapLibre and friends don't bloat the entry chunk.
+const TodayRoute = lazy(() =>
+  import("@/modules/today/index.js").then((m) => ({ default: m.TodayRoute })),
+);
 const TerritoryRoute = lazy(() =>
   import("@/modules/territory/index.js").then((m) => ({ default: m.TerritoryRoute })),
 );
@@ -83,13 +86,14 @@ export default function App() {
     <Suspense fallback={<RouteFallback />}>
       <Routes>
         <Route element={<AppShell />}>
-          <Route path="/" element={<Navigate to="/territory" replace />} />
+          <Route path="/" element={<Navigate to="/today" replace />} />
+          <Route path="/today" element={<TodayRoute />} />
           <Route path="/territory" element={<TerritoryRoute />} />
           <Route path="/walk" element={<WalkRoute />} />
           <Route path="/pipeline" element={<PipelineRoute />} />
           <Route path="/bill" element={<BillCaptureRoute />} />
           <Route path="/settings" element={<SettingsRoute />} />
-          <Route path="*" element={<Navigate to="/territory" replace />} />
+          <Route path="*" element={<Navigate to="/today" replace />} />
         </Route>
       </Routes>
     </Suspense>

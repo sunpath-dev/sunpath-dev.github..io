@@ -20,34 +20,53 @@ const DEFAULT_CENTER: [number, number] = [-82.5915, 36.6376];
 const DEFAULT_ZOOM = 13;
 const PARCEL_SOURCE = "parcels";
 
+const OSM_STYLE: maplibregl.StyleSpecification = {
+  version: 8,
+  sources: {
+    osm: {
+      type: "raster",
+      tiles: [
+        "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        "https://b.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        "https://c.tile.openstreetmap.org/{z}/{x}/{y}.png",
+      ],
+      tileSize: 256,
+      attribution: "© OpenStreetMap contributors",
+      maxzoom: 19,
+    },
+  },
+  layers: [{ id: "osm", type: "raster", source: "osm" }],
+};
+
+const SAT_STYLE: maplibregl.StyleSpecification = {
+  version: 8,
+  sources: {
+    satellite: {
+      type: "raster",
+      tiles: [
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      ],
+      tileSize: 256,
+      attribution: "© Esri, Maxar, Earthstar Geographics",
+      maxzoom: 18,
+    },
+  },
+  layers: [{ id: "satellite", type: "raster", source: "satellite" }],
+};
+
 export function TerritoryRoute() {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MlMap | null>(null);
   const [parcelCount, setParcelCount] = useState<number>(0);
   const [selected, setSelected] = useState<ParcelDetail | null>(null);
   const lastPinsRef = useRef<ParcelPin[]>([]);
+  const [isSatellite, setIsSatellite] = useState(false);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
     const map = new maplibregl.Map({
       container: containerRef.current,
-      style: {
-        version: 8,
-        sources: {
-          osm: {
-            type: "raster",
-            tiles: [
-              "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png",
-              "https://b.tile.openstreetmap.org/{z}/{x}/{y}.png",
-              "https://c.tile.openstreetmap.org/{z}/{x}/{y}.png",
-            ],
-            tileSize: 256,
-            attribution: "© OpenStreetMap contributors",
-            maxzoom: 19,
-          },
-        },
-        layers: [{ id: "osm", type: "raster", source: "osm" }],
-      },
+      style: OSM_STYLE,
       center: DEFAULT_CENTER,
       zoom: DEFAULT_ZOOM,
       attributionControl: { compact: true },
@@ -173,6 +192,53 @@ export function TerritoryRoute() {
     };
   }, []);
 
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const newStyle = isSatellite ? SAT_STYLE : OSM_STYLE;
+    map.setStyle(newStyle);
+    map.once("style.load", () => {
+      if (!map.getSource(PARCEL_SOURCE)) {
+        map.addSource(PARCEL_SOURCE, {
+          type: "geojson",
+          data: { type: "FeatureCollection", features: [] },
+        });
+      }
+      if (!map.getLayer("parcels-circle")) {
+        map.addLayer({
+          id: "parcels-circle",
+          type: "circle",
+          source: PARCEL_SOURCE,
+          paint: {
+            "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 2, 16, 6],
+            "circle-color": [
+              "case",
+              ["==", ["get", "existing"], 1],
+              "#94a3b8",
+              [
+                "interpolate",
+                ["linear"],
+                ["get", "score"],
+                0, "#fef3c7",
+                40, "#fcd34d",
+                60, "#f59e0b",
+                80, "#ea580c",
+                100, "#b91c1c",
+              ],
+            ],
+            "circle-stroke-color": "#0f172a",
+            "circle-stroke-width": 0.5,
+            "circle-opacity": 0.85,
+          },
+        });
+      }
+      const src = map.getSource(PARCEL_SOURCE) as maplibregl.GeoJSONSource | undefined;
+      if (lastPinsRef.current.length > 0) {
+        src?.setData(pinsToGeoJSON(lastPinsRef.current));
+      }
+    });
+  }, [isSatellite]);
+
   return (
     <div className="relative flex h-full flex-col">
       <header className="border-b bg-white p-4">
@@ -182,6 +248,19 @@ export function TerritoryRoute() {
             <span className="text-xs text-slate-500">
               {parcelCount} parcels in view
             </span>
+            <button
+              type="button"
+              onClick={() => setIsSatellite((v) => !v)}
+              className={[
+                "rounded border px-2 py-1 text-xs font-semibold",
+                isSatellite
+                  ? "border-amber-500 bg-amber-500 text-white"
+                  : "border-amber-500 text-amber-700 hover:bg-amber-50",
+              ].join(" ")}
+              title="Toggle satellite imagery"
+            >
+              🛰 {isSatellite ? "Streets" : "Satellite"}
+            </button>
             <button
               type="button"
               onClick={() => downloadWalkListCsv(lastPinsRef.current)}
