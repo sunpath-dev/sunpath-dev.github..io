@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth.js";
 import { supabase } from "@/lib/supabase.js";
+import { AddressSearch } from "@/components/AddressSearch.js";
 
 interface Weather {
   temp_f: number;
@@ -178,27 +179,8 @@ export function TodayRoute() {
       </div>
 
       <div className="flex-1 p-4 space-y-4">
-        {/* Address search shortcut */}
-        <button
-          type="button"
-          onClick={() => navigate("/territory")}
-          className="flex w-full items-center gap-2 rounded-xl border bg-white px-4 py-3 text-left text-sm text-slate-500 shadow-sm"
-        >
-          <svg
-            className="h-4 w-4 shrink-0 text-slate-400"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="m21 21-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0Z"
-            />
-          </svg>
-          Search an address…
-        </button>
+        {/* Address search — geocodes and opens territory map centered on result */}
+        <AddressSearch placeholder="Type an address to look up data…" />
 
         {/* Forecast */}
         {weather && (

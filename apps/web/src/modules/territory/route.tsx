@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import maplibregl, { Map as MlMap } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { fetchParcelsInBbox, pinsToGeoJSON } from "./repo.js";
@@ -7,6 +8,7 @@ import {
   ParcelDetailSheet,
   type ParcelDetail,
 } from "./ParcelDetailSheet.js";
+import { AddressSearch } from "@/components/AddressSearch.js";
 
 /**
  * Territory map view.
@@ -61,6 +63,8 @@ export function TerritoryRoute() {
   const [selected, setSelected] = useState<ParcelDetail | null>(null);
   const lastPinsRef = useRef<ParcelPin[]>([]);
   const [isSatellite, setIsSatellite] = useState(false);
+  const [searchParams] = useSearchParams();
+  const [geocodeLabel, setGeocodeLabel] = useState<string | null>(null);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -192,6 +196,34 @@ export function TerritoryRoute() {
     };
   }, []);
 
+  // Fly to geocoded address when ?lat=&lon= params are present.
+  useEffect(() => {
+    const lat = parseFloat(searchParams.get("lat") ?? "");
+    const lon = parseFloat(searchParams.get("lon") ?? "");
+    const q = searchParams.get("q");
+    if (!isFinite(lat) || !isFinite(lon)) return;
+    setGeocodeLabel(q);
+    const map = mapRef.current;
+    if (map) {
+      map.flyTo({ center: [lon, lat], zoom: 15, duration: 1200 });
+      new maplibregl.Marker({ color: "#f59e0b" })
+        .setLngLat([lon, lat])
+        .addTo(map);
+    } else {
+      // Map not ready yet — store for after-load
+      const onLoad = () => {
+        mapRef.current?.flyTo({ center: [lon, lat], zoom: 15, duration: 800 });
+        if (mapRef.current) {
+          new maplibregl.Marker({ color: "#f59e0b" })
+            .setLngLat([lon, lat])
+            .addTo(mapRef.current);
+        }
+      };
+      window.addEventListener("maplibre-ready", onLoad, { once: true });
+      return () => window.removeEventListener("maplibre-ready", onLoad);
+    }
+  }, [searchParams]);
+
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -280,9 +312,12 @@ export function TerritoryRoute() {
             </button>
           </div>
         </div>
-        <p className="text-sm text-slate-600">
-          Gate City, VA — Scott County. Pan/zoom to load parcels.
-        </p>
+        <div className="mt-2">
+          <AddressSearch placeholder="Search an address…" />
+        </div>
+        {geocodeLabel && (
+          <p className="mt-1 text-xs text-amber-700">📍 {geocodeLabel}</p>
+        )}
         <div className="mt-2 flex items-center gap-2 text-[11px] text-slate-500">
           <span className="inline-block h-2 w-2 rounded-full bg-amber-200" />
           <span>cold</span>
