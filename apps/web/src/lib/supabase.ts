@@ -2,21 +2,18 @@
 
 import { createClient } from '@supabase/supabase-js'
 
-const url = import.meta.env.VITE_SUPABASE_URL
-const anon = import.meta.env.VITE_SUPABASE_ANON_KEY
+const fallbackUrl = 'https://sclisaylpwnffkkyepow.supabase.co'
+const fallbackAnon = 'sb_publishable_R7RpCcyNRLgHmuLBCTrFPw_ll4C8QBv'
 
-if (!url || !anon) {
-  console.warn(
-    '[supabase] VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY missing — auth and data calls will fail until set.',
-  )
+const url = import.meta.env.VITE_SUPABASE_URL || fallbackUrl
+const anon = import.meta.env.VITE_SUPABASE_ANON_KEY || fallbackAnon
+
+if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
+  console.warn('[supabase] Using checked-in publishable fallback config for the shared Sunpath project.')
 }
 
-// `createClient` validates the URL synchronously at module load. When env
-// is missing (e.g. CI without secrets) we substitute a syntactically valid
-// placeholder so the bundle keeps working as a static shell — the auth
-// hook short-circuits on the same condition and renders the sign-in page.
 export const supabase = createClient(
-  url || 'https://placeholder.supabase.co',
-  anon || 'placeholder-anon-key',
+  url,
+  anon,
   { auth: { persistSession: true, autoRefreshToken: true } },
 )
