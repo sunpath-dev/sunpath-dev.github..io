@@ -28,6 +28,8 @@ interface RequestBody {
   azimuth?: number;
   losses_pct?: number;
   utility_rate_usd_per_kwh?: number;
+  /** When set, write the result to property_signal for caching. */
+  parcel_id?: string;
 }
 
 function defaults(body: RequestBody) {
@@ -145,6 +147,34 @@ Deno.serve(async (req: Request) => {
     capacity_factor: Math.max(0, Math.min(1, capacityFactor)),
     est_annual_savings_usd: savings,
   };
+
+  // Persist to property_signal so doorcards / scoring can read it later.
+  if (body.parcel_id) {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (supabaseUrl && serviceKey) {
+      try {
+        await fetch(`${supabaseUrl}/rest/v1/property_signal`, {
+          method: "POST",
+          headers: {
+            apikey: serviceKey,
+            Authorization: `Bearer ${serviceKey}`,
+            "Content-Type": "application/json",
+            Prefer: "return=minimal",
+          },
+          body: JSON.stringify({
+            parcel_id: body.parcel_id,
+            kind: "pvwatts",
+            observed_at: new Date().toISOString(),
+            payload,
+            source: "nrel-pvwatts-v8",
+          }),
+        });
+      } catch {
+        // best-effort cache; never fail the user-facing call
+      }
+    }
+  }
 
   return Response.json(payload, { headers: CORS_HEADERS });
 });
