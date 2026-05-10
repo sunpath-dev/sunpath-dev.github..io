@@ -85,9 +85,27 @@ Goal: rep can install the PWA on his phone, log in, and see a MapLibre map of hi
 - Branch protection on `main`: require CI green + PR review (even solo — keeps history clean).
 
 **0.6 — DNS + domain** *(depends on 0.5 succeeding once)*
-- At registrar for `sunpath.dev`: `A` records → `185.199.108.153`, `.109.153`, `.110.153`, `.111.153`. Optional `CNAME www` → `sunpath-dev.github.io`.
-- Verify HTTPS provisioning (`.dev` is HSTS-preloaded — must serve TLS).
-- Confirm `https://sunpath.dev` serves the built app.
+
+URL chain: browser → `sunpath.dev` (DNS) → GitHub Pages edge → repo's Pages artifact (`apps/web/dist`).
+
+Three-step setup, all currently outstanding:
+
+1. **Repo rename (USER ACTION).** Repo is currently named `sunpath-dev.github..io` (two dots — typo). GitHub Pages won't serve it as `<owner>.github.io`. Rename in GitHub → Settings → General → "Repository name" to `sunpath-dev.github.io`. Git remotes auto-redirect; local clones keep working.
+2. **DNS records (USER ACTION at registrar for `sunpath.dev`):**
+   - `A @ 185.199.108.153`
+   - `A @ 185.199.109.153`
+   - `A @ 185.199.110.153`
+   - `A @ 185.199.111.153`
+   - `AAAA @ 2606:50c0:8000::153` (and `:8001::153`, `:8002::153`, `:8003::153`)
+   - `CNAME www → sunpath-dev.github.io.`
+3. **GitHub Pages settings (USER ACTION):** Settings → Pages → Source = GitHub Actions; Custom domain = `sunpath.dev`; Enforce HTTPS = on. (`.dev` is HSTS-preloaded so TLS is mandatory — Pages provisions Let's Encrypt automatically once DNS resolves, usually < 1 hr.)
+
+Already shipped on the repo side:
+- `apps/web/public/CNAME` contains `sunpath.dev` (Vite copies to `dist/CNAME`, which Pages reads as the canonical host). ✅
+- `apps/web/vite.config.ts` uses `base: '/'` (correct for apex / `<user>.github.io` deploy — no subpath rewrite). ✅
+- `.github/workflows/deploy.yml` uses `actions/deploy-pages` and uploads `apps/web/dist`. ✅
+
+Verify after DNS propagates: `https://sunpath.dev` serves the PWA shell; `dig sunpath.dev +short` returns the four `185.199.*.153` IPs.
 
 **0.7 — Auth + map shell + offline sync engine** *(depends on 0.3, 0.4)*
 - Email magic-link login screen.
