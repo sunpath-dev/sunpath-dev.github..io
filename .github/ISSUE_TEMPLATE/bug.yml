@@ -1,0 +1,63 @@
+name: Bug report
+description: Something is broken or behaves unexpectedly.
+labels: ["bug"]
+body:
+  - type: dropdown
+    id: module
+    attributes:
+      label: Module
+      options:
+        - core
+        - territory
+        - capture
+        - ocr
+        - doorcard
+        - triggers
+        - hoa
+        - pipeline
+        - sync
+        - supabase
+        - infra / build
+        - unsure
+    validations:
+      required: true
+  - type: dropdown
+    id: phase
+    attributes:
+      label: Phase
+      options:
+        - phase-0
+        - phase-1
+        - phase-2
+        - phase-3
+        - phase-4
+        - phase-5
+        - cross-cutting
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Steps to reproduce, what you expected, what actually happened.
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Device / browser
+      placeholder: e.g. iPhone 15 / Safari, Pixel 8 / Chrome, Windows / Edge
+  - type: dropdown
+    id: connectivity
+    attributes:
+      label: Connectivity at the time
+      options:
+        - online
+        - offline
+        - intermittent
+        - n/a
+  - type: textarea
+    id: logs
+    attributes:
+      label: Console logs / screenshots
+      description: Paste any relevant output. Screenshots welcome.

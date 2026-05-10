@@ -1,0 +1,24 @@
+{
+  "name": "sunpath",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Field intelligence for solar door-to-door teams.",
+  "license": "MIT",
+  "homepage": "https://sunpath.dev",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sunpath-dev/sunpath-dev.github.io"
+  },
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=9"
+  },
+  "packageManager": "pnpm@9.0.0",
+  "scripts": {
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "build": "pnpm --filter web build",
+    "dev": "pnpm --filter web dev"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "extends": "../packages/shared/tsconfig.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "."
+  },
+  "include": ["virginia/**/*.ts", "src/**/*.ts"],
+  "references": [{ "path": "../packages/shared" }]
+}

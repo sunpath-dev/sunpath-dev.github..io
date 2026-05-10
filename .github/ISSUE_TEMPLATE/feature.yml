@@ -1,0 +1,57 @@
+name: Feature request
+description: Propose new functionality or an enhancement.
+labels: ["enhancement"]
+body:
+  - type: dropdown
+    id: module
+    attributes:
+      label: Target module
+      options:
+        - core
+        - territory
+        - capture
+        - ocr
+        - doorcard
+        - triggers
+        - hoa
+        - pipeline
+        - new module
+        - unsure
+    validations:
+      required: true
+  - type: dropdown
+    id: phase
+    attributes:
+      label: Suggested phase
+      options:
+        - phase-0
+        - phase-1
+        - phase-2
+        - phase-3
+        - phase-4
+        - phase-5
+        - deferred / future
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What real-world rep behavior or pain point does this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: How should it work? UI sketch, data shape, edge cases.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: textarea
+    id: open-questions
+    attributes:
+      label: Open questions / risks

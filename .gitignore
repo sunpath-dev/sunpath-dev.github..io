@@ -1,0 +1,55 @@
+# Node / pnpm
+node_modules/
+.pnpm-store/
+.pnpm-debug.log*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+.vite/
+
+# Vite PWA
+dev-dist/
+
+# Env
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Supabase
+supabase/.branches/
+supabase/.temp/
+supabase/.env
+
+# Editor / OS
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json.example
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Test / coverage
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+
+# Logs
+logs/
+*.log
+
+# Cache
+.cache/
+.turbo/
+.eslintcache
+
+# Claude Code — keep checked-in config, ignore personal overrides
+.claude/settings.local.json
+.claude/.credentials*
