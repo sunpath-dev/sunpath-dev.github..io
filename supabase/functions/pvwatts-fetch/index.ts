@@ -125,6 +125,11 @@ Deno.serve(async (req: Request) => {
     : new Array(12).fill(0);
   const dcAnnual = Number(out.dc_annual ?? 0);
   const capacityFactor = Number(out.capacity_factor ?? 0) / 100;
+  // solrad_annual = annual avg solar radiation kWh/m²/day = peak sun hours/day
+  const peakSunHoursDay =
+    typeof out.solrad_annual === "number" && out.solrad_annual > 0
+      ? Math.round(out.solrad_annual * 10) / 10
+      : undefined;
 
   const rate = body.utility_rate_usd_per_kwh ?? null;
   const savings = rate !== null ? acAnnual * rate : null;
@@ -146,6 +151,7 @@ Deno.serve(async (req: Request) => {
     dc_annual_kwh: dcAnnual,
     capacity_factor: Math.max(0, Math.min(1, capacityFactor)),
     est_annual_savings_usd: savings,
+    peak_sun_hours_day: peakSunHoursDay,
   };
 
   // Persist to property_signal so doorcards / scoring can read it later.

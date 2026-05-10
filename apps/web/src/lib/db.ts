@@ -39,6 +39,7 @@ export interface DbLead {
 export interface DbBillCapture {
   id: string; // client-generated UUID
   rep_id: string;
+  parcel_id?: string | null;
   lead_id?: string | null;
   utility_name?: string | null;
   total_kwh?: number | null;
@@ -68,6 +69,11 @@ class SunpathDb extends Dexie {
       doorEvents: "&client_event_id, synced, occurred_at, parcel_id, rep_id",
       leads: "&id, synced, stage, parcel_id, rep_id, next_action_at",
       billCaptures: "&id, synced, rep_id, lead_id, created_at",
+    });
+    this.version(3).stores({
+      doorEvents: "&client_event_id, synced, occurred_at, parcel_id, rep_id",
+      leads: "&id, synced, stage, parcel_id, rep_id, next_action_at",
+      billCaptures: "&id, synced, rep_id, parcel_id, lead_id, created_at",
     });
   }
 }

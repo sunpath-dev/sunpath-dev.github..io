@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   CensusContextSchema,
   IncentivesResponseSchema,
@@ -55,12 +56,33 @@ const DEFAULT_FIPS: Record<string, { state: string; county: string }> = {
   TN: { state: "47", county: "067" },
 };
 
-// Default residential utility rate by state (cents→USD/kWh, 2023 EIA avg).
-// Used when rate-watch-eia hasn't populated utility_rate_observation yet.
-// EIA Feb 2026 residential averages (cents/kWh ÷ 100). Updated from live data.
+// EIA Feb 2026 residential averages (cents/kWh ÷ 100).
 const DEFAULT_RATE_BY_STATE: Record<string, number> = {
   VA: 0.1596,
   TN: 0.114,
+};
+
+// EIA 2023 residential avg monthly kWh by state (used as baseline until bill captured).
+const EIA_AVG_MONTHLY_KWH: Record<string, number> = {
+  VA: 1105,
+  TN: 1254,
+  NC: 1087,
+  WV: 1074,
+  KY: 1117,
+  GA: 1101,
+  SC: 1170,
+  AL: 1162,
+  MS: 1262,
+  AR: 1133,
+  LA: 1274,
+  TX: 1176,
+  FL: 1145,
+  OH: 865,
+  PA: 857,
+  NY: 603,
+  CA: 573,
+  // National fallback
+  "": 886,
 };
 
 const SYSTEM_KW = 7;
@@ -133,8 +155,17 @@ const OUTCOME_COLORS: Record<DoorOutcome, string> = {
   sale: "bg-green-100 text-green-800 hover:bg-green-200",
 };
 
+interface BillCapture {
+  total_kwh: number | null;
+  rate_kwh_usd: number | null;
+  utility_name: string | null;
+  total_amount_usd: number | null;
+  created_at: string;
+}
+
 export function ParcelDetailSheet({ parcel, onClose }: Props) {
   const { session } = useAuth();
+  const navigate = useNavigate();
 
   const [incentives, setIncentives] = useState<IncentivesResponse | null>(null);
   const [estimate, setEstimate] = useState<PvWattsEstimate | null>(null);
@@ -145,6 +176,8 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
   const [utilityRate, setUtilityRate] = useState<number | null>(null);
   const [triggers, setTriggers] = useState<TriggerCounts | null>(null);
   const [ownerRow, setOwnerRow] = useState<OwnerRow | null>(null);
+  const [billCapture, setBillCapture] = useState<BillCapture | null>(null);
+  const [showBuildMySolar, setShowBuildMySolar] = useState(false);
 
   const [showKnockPicker, setShowKnockPicker] = useState(false);
   const [showPitches, setShowPitches] = useState(false);
@@ -275,7 +308,7 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
       if (permits > 0 || sales > 0) setTriggers({ permits, sales });
     })();
 
-    // Fetch full parcel row for owner info + home facts (skip for synthetic/geocoded parcels).
+    // Fetch full parcel row + bill captures (skip for synthetic/geocoded parcels).
     if (!parcel.id.startsWith("geo:")) {
       void (async () => {
         const { data } = await supabase
@@ -287,6 +320,18 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
           .single();
         if (cancelled || !data) return;
         setOwnerRow(data as OwnerRow);
+      })();
+
+      void (async () => {
+        const { data } = await supabase
+          .from("bill_capture")
+          .select("total_kwh, rate_kwh_usd, utility_name, total_amount_usd, created_at")
+          .eq("parcel_id", parcel.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .single();
+        if (cancelled || !data) return;
+        setBillCapture(data as BillCapture);
       })();
     }
 
@@ -305,20 +350,32 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
       setKnockDone(null);
       setKnockError(null);
       setOwnerRow(null);
+      setBillCapture(null);
     };
   }, [parcel]);
 
   if (!parcel) return null;
 
   const effectiveRate =
-    estimate?.est_annual_savings_usd != null && estimate.ac_annual_kwh > 0
+    billCapture?.rate_kwh_usd ??
+    (estimate?.est_annual_savings_usd != null && estimate.ac_annual_kwh > 0
       ? estimate.est_annual_savings_usd / estimate.ac_annual_kwh
-      : (utilityRate ?? DEFAULT_RATE_BY_STATE[parcel?.state ?? ""] ?? 0.12);
+      : (utilityRate ?? DEFAULT_RATE_BY_STATE[parcel?.state ?? ""] ?? 0.12));
+
+  // When a bill is captured: derive annual kWh from actual monthly usage.
+  // Ratio: PVWatts annual output / EIA state avg annual kWh × actual monthly.
+  const billAnnualKwh =
+    billCapture?.total_kwh != null && estimate?.ac_annual_kwh != null
+      ? (billCapture.total_kwh * 12 * estimate.ac_annual_kwh) /
+        Math.max(1, (EIA_AVG_MONTHLY_KWH[parcel?.state ?? ""] ?? EIA_AVG_MONTHLY_KWH[""] ?? 886) * 12)
+      : null;
 
   const finModel =
     estimate
-      ? financialModel(estimate.ac_annual_kwh, effectiveRate, SYSTEM_KW)
+      ? financialModel(billAnnualKwh ?? estimate.ac_annual_kwh, effectiveRate, SYSTEM_KW)
       : null;
+
+  const finModelIsActual = billCapture?.total_kwh != null;
 
   const handleKnock = async (outcome: DoorOutcome) => {
     if (!session) return;
@@ -563,21 +620,54 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
         {/* ENERGY & SOLAR */}
         {estimate ? (
           <section className="mb-3 rounded-lg border bg-white p-3">
-            <h3 className="mb-2 text-sm font-semibold text-slate-900">Energy & Solar</h3>
+            <div className="mb-2 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-slate-900">Energy & Solar</h3>
+              {finModelIsActual && (
+                <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
+                  ★ Actual bill
+                </span>
+              )}
+            </div>
             <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-900">
+              {estimate.peak_sun_hours_day != null ? (
+                <>
+                  <dt className="font-medium text-slate-700">Peak sun hrs/day</dt>
+                  <dd className="font-semibold text-amber-700">
+                    {estimate.peak_sun_hours_day} hrs (NREL)
+                  </dd>
+                </>
+              ) : null}
               <dt className="font-medium text-slate-700">System modeled</dt>
               <dd>{SYSTEM_KW} kW</dd>
               <dt className="font-medium text-slate-700">Annual production</dt>
               <dd>{estimate.ac_annual_kwh.toLocaleString()} kWh/yr</dd>
-              <dt className="font-medium text-slate-700">Capacity factor</dt>
-              <dd>{(estimate.capacity_factor * 100).toFixed(1)}%</dd>
-              <dt className="font-medium text-slate-700">Rate used</dt>
-              <dd className="text-slate-700">
-                ${effectiveRate.toFixed(3)}/kWh
-              </dd>
-              <dt className="font-medium text-slate-700">Est. savings/yr</dt>
-              <dd className="font-medium text-green-700">
-                {fmt$(estimate.ac_annual_kwh * effectiveRate)}/yr
+              {billCapture?.total_kwh != null ? (
+                <>
+                  <dt className="font-medium text-slate-700">Your usage</dt>
+                  <dd className="font-semibold text-slate-900">
+                    {billCapture.total_kwh.toLocaleString()} kWh/mo
+                    {billCapture.utility_name ? ` · ${billCapture.utility_name}` : ""}
+                  </dd>
+                </>
+              ) : (
+                <>
+                  <dt className="font-medium text-slate-700">
+                    {parcel.state} avg usage
+                  </dt>
+                  <dd className="text-slate-600">
+                    {(EIA_AVG_MONTHLY_KWH[parcel.state] ?? EIA_AVG_MONTHLY_KWH[""] ?? 886).toLocaleString()} kWh/mo (EIA)
+                  </dd>
+                </>
+              )}
+              <dt className="font-medium text-slate-700">
+                Rate {finModelIsActual ? "(actual)" : "(est.)"}
+              </dt>
+              <dd>${effectiveRate.toFixed(3)}/kWh</dd>
+              <dt className="font-medium text-slate-700">
+                Savings/yr {finModelIsActual ? "★" : "(est.)"}
+              </dt>
+              <dd className="font-semibold text-green-700">
+                {fmt$((finModel?.annualSavings ?? estimate.ac_annual_kwh * effectiveRate))}/yr
               </dd>
             </dl>
           </section>
@@ -603,30 +693,29 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
         {/* FINANCIAL MODEL */}
         {finModel ? (
           <section className="mb-3 rounded-lg border bg-amber-50 p-3">
-            <h3 className="mb-2 text-sm font-semibold text-amber-800">
-              Financial Model
-            </h3>
+            <div className="mb-2 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-amber-800">Financial Model</h3>
+              <span className="text-xs text-slate-500">
+                {finModelIsActual ? "★ Based on your bill" : "Estimated"}
+              </span>
+            </div>
             <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-700">
               <dt className="font-medium text-slate-700">System cost</dt>
               <dd>{fmt$(finModel.systemCost)}</dd>
               <dt className="font-medium text-slate-700">Federal ITC (30%)</dt>
               <dd className="text-green-700">−{fmt$(finModel.itcRebate)}</dd>
               <dt className="font-medium text-slate-700">Annual savings</dt>
-              <dd className="font-medium text-green-700">
+              <dd className="font-semibold text-green-700">
                 {fmt$(finModel.annualSavings)}/yr
               </dd>
               <dt className="font-medium text-slate-700">Payback</dt>
               <dd className="font-semibold">
                 {finModel.paybackYrs !== null
-                  ? `~${finModel.paybackYrs.toFixed(1)} yrs with 30% federal ITC`
+                  ? `~${finModel.paybackYrs.toFixed(1)} yrs with 30% ITC`
                   : "—"}
               </dd>
               <dt className="font-medium text-slate-700">25-yr net savings</dt>
-              <dd
-                className={
-                  finModel.savings25yr >= 0 ? "text-green-700" : "text-red-700"
-                }
-              >
+              <dd className={finModel.savings25yr >= 0 ? "text-green-700" : "text-red-700"}>
                 {fmt$(Math.abs(finModel.savings25yr))}
                 {finModel.savings25yr < 0 ? " loss" : " gain"}
               </dd>
@@ -705,6 +794,28 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
 
         {/* ACTION BUTTONS */}
         <div className="mt-4 flex flex-col gap-2">
+
+          {/* Capture Bill */}
+          <button
+            type="button"
+            onClick={() =>
+              navigate(
+                `/bill?parcel_id=${parcel.id}&address=${encodeURIComponent(parcel.address)}`,
+              )
+            }
+            className="w-full rounded bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700"
+          >
+            {billCapture ? "Update Bill" : "Capture Bill"}
+          </button>
+
+          {/* Build My Solar */}
+          <button
+            type="button"
+            onClick={() => setShowBuildMySolar(true)}
+            className="w-full rounded border border-blue-500 px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50"
+          >
+            Build My Solar
+          </button>
 
           {/* Add / Remove from today's route */}
           <button
@@ -852,6 +963,75 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
                   </p>
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* BUILD MY SOLAR MODAL */}
+      {showBuildMySolar ? (
+        <div
+          className="absolute inset-0 z-20 flex items-end justify-center bg-black/40"
+          onClick={() => setShowBuildMySolar(false)}
+          role="presentation"
+        >
+          <div
+            className="w-full max-h-[70vh] overflow-y-auto rounded-t-2xl bg-white p-4 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-label="Build My Solar"
+          >
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-base font-semibold text-slate-800">
+                Build My Solar
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowBuildMySolar(false)}
+                className="rounded p-1 text-slate-500 hover:bg-slate-100"
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="text-sm text-slate-700 leading-relaxed mb-4">
+              Walk the homeowner through a custom system design — panel
+              count, roof fit, production estimate, and a financing breakdown
+              tailored to this property.
+            </p>
+            {finModel && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 mb-4">
+                <p className="text-xs font-semibold text-amber-800 mb-1">
+                  Current estimate for this home
+                </p>
+                <dl className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs text-slate-700">
+                  <dt>System</dt>
+                  <dd>{SYSTEM_KW} kW</dd>
+                  <dt>Annual savings</dt>
+                  <dd className="font-semibold text-green-700">
+                    {fmt$(finModel.annualSavings)}/yr
+                  </dd>
+                  <dt>Payback</dt>
+                  <dd>
+                    {finModel.paybackYrs !== null
+                      ? `~${finModel.paybackYrs.toFixed(1)} yrs`
+                      : "—"}
+                  </dd>
+                  <dt>25-yr net</dt>
+                  <dd className={finModel.savings25yr >= 0 ? "text-green-700" : "text-red-700"}>
+                    {fmt$(Math.abs(finModel.savings25yr))}
+                  </dd>
+                </dl>
+              </div>
+            )}
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-center">
+              <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">
+                Coming soon
+              </p>
+              <p className="text-xs text-slate-600">
+                Interactive system builder with financing options,
+                panel layout, and leave-behind proposal PDF.
+              </p>
             </div>
           </div>
         </div>

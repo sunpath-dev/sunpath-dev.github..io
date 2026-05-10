@@ -108,6 +108,7 @@ async function drainBillCaptures(): Promise<void> {
   const payload = pending.map((b) => ({
     id: b.id,
     rep_id: b.rep_id,
+    parcel_id: b.parcel_id ?? null,
     lead_id: b.lead_id ?? null,
     utility_name: b.utility_name ?? null,
     total_kwh: b.total_kwh ?? null,

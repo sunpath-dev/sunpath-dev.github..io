@@ -1,4 +1,5 @@
 import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { parseBillText, redactBillText, type BillFields } from "@sunpath/shared";
 import { db } from "@/lib/db.js";
 import { kickSync } from "@/lib/sync.js";
@@ -50,6 +51,11 @@ function manualToFields(form: ManualForm): BillFields {
 
 export function BillCaptureRoute() {
   const { session } = useAuth();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const linkedParcelId = searchParams.get("parcel_id");
+  const linkedAddress = searchParams.get("address");
+
   const [activeTab, setActiveTab] = useState<Tab>("photo");
 
   const [ocrText, setOcrText] = useState<string>("");
@@ -139,6 +145,7 @@ export function BillCaptureRoute() {
       await db.billCaptures.put({
         id: crypto.randomUUID(),
         rep_id: session.user.id,
+        parcel_id: linkedParcelId ?? null,
         lead_id: null,
         utility_name: activeFields.utility_name,
         total_kwh: activeFields.total_kwh,
@@ -159,6 +166,10 @@ export function BillCaptureRoute() {
       setFileOcrState("idle");
       setFilePdfMode(false);
       setManualForm(EMPTY_MANUAL);
+      // Return to territory map so rep can see updated dashboard.
+      if (linkedParcelId) {
+        setTimeout(() => navigate("/territory"), 1200);
+      }
     } catch (err) {
       setSaveState("error");
       setSaveError(String(err));
@@ -169,10 +180,29 @@ export function BillCaptureRoute() {
     <div className="flex h-full flex-col lg:flex-row">
       <div className="flex flex-1 flex-col">
         <header className="border-b bg-white p-4">
-          <h1 className="text-2xl font-bold">Bill capture</h1>
-          <p className="text-sm text-slate-600">
-            Enter the customer's utility bill. Fields extract automatically.
-          </p>
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <h1 className="text-2xl font-bold">Bill capture</h1>
+              {linkedAddress ? (
+                <p className="mt-0.5 text-sm font-medium text-amber-700">
+                  Linked to: {linkedAddress}
+                </p>
+              ) : (
+                <p className="text-sm text-slate-600">
+                  Enter the customer&apos;s utility bill. Fields extract automatically.
+                </p>
+              )}
+            </div>
+            {linkedParcelId && (
+              <button
+                type="button"
+                onClick={() => navigate("/territory")}
+                className="shrink-0 rounded px-2 py-1 text-xs text-slate-500 hover:bg-slate-100"
+              >
+                ← Back
+              </button>
+            )}
+          </div>
         </header>
 
         <div className="border-b bg-white">

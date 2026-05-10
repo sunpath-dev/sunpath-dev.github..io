@@ -41,6 +41,8 @@ export const PvWattsEstimateSchema = z.object({
   capacity_factor: z.number().min(0).max(1),
   /** Estimated annual savings at given utility rate, USD. Optional. */
   est_annual_savings_usd: z.number().nonnegative().nullable(),
+  /** NREL annual average solar radiation, kWh/m²/day = peak sun hours/day. */
+  peak_sun_hours_day: z.number().nonnegative().optional(),
 });
 export type PvWattsEstimate = z.infer<typeof PvWattsEstimateSchema>;
 

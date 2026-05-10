@@ -4,6 +4,9 @@ import { Button } from "@sunpath/ui";
 import { PushOptIn } from "./PushOptIn.js";
 import { InviteAdminPanel } from "@/components/InviteAdminPanel.js";
 
+const REPO = "https://github.com/sunpath-dev/sunpath-dev.github.io";
+const SUPPORT_EMAIL = "support@sunpath.dev";
+
 const SCREENS = [
   {
     name: "Today",
@@ -58,10 +61,86 @@ export function SettingsRoute() {
   return (
     <div className="flex h-full flex-col overflow-y-auto bg-slate-50">
       <header className="border-b bg-white px-4 py-4">
-        <h1 className="text-2xl font-bold">About</h1>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">About Sunpath</h1>
+            <p className="text-sm text-slate-500 mt-0.5">Field intelligence for solar reps</p>
+          </div>
+          <span className="text-xs font-mono bg-amber-100 text-amber-800 px-2 py-1 rounded-full">POC</span>
+        </div>
       </header>
 
       <div className="flex-1 space-y-3 p-4">
+
+        {/* Roadmap + quick links */}
+        <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
+          <div className="px-4 py-3 border-b">
+            <div className="text-sm font-semibold text-slate-800">Roadmap & feedback</div>
+          </div>
+          <div className="divide-y">
+            <a
+              href={`${REPO}/blob/main/ROADMAP.md`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-between px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 active:bg-slate-100"
+            >
+              <span>📋 Features &amp; roadmap</span>
+              <span className="text-slate-400 text-xs">↗</span>
+            </a>
+            <a
+              href={`${REPO}/blob/main/CHANGELOG.md`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-between px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 active:bg-slate-100"
+            >
+              <span>📝 Changelog — what&apos;s new</span>
+              <span className="text-slate-400 text-xs">↗</span>
+            </a>
+            <a
+              href={`${REPO}/issues/new?template=feature_request.yml`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-between px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 active:bg-slate-100"
+            >
+              <span>💡 Request a feature</span>
+              <span className="text-slate-400 text-xs">↗</span>
+            </a>
+            <a
+              href={`${REPO}/issues/new?template=bug_report.yml`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-between px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 active:bg-slate-100"
+            >
+              <span>🐛 Report a bug</span>
+              <span className="text-slate-400 text-xs">↗</span>
+            </a>
+          </div>
+        </div>
+
+        {/* Support */}
+        <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
+          <div className="px-4 py-3 border-b">
+            <div className="text-sm font-semibold text-slate-800">Support</div>
+          </div>
+          <div className="divide-y">
+            <a
+              href={`mailto:${SUPPORT_EMAIL}`}
+              className="flex items-center justify-between px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 active:bg-slate-100"
+            >
+              <span>✉ Email support</span>
+              <span className="text-slate-400 text-xs">{SUPPORT_EMAIL}</span>
+            </a>
+            <a
+              href={`${REPO}/issues`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-between px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 active:bg-slate-100"
+            >
+              <span>🔧 GitHub Issues</span>
+              <span className="text-slate-400 text-xs">↗</span>
+            </a>
+          </div>
+        </div>
 
         {/* About / How to use */}
         <Section title="How to use Sunpath">
