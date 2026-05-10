@@ -52,4 +52,16 @@ describe("pinsToGeoJSON", () => {
     const f = fc.features[0]!;
     expect(typeof f.properties!.score).toBe("number");
   });
+
+  it("prefers the server-computed score over client compute", () => {
+    const fc = pinsToGeoJSON([{ ...basePin, score: 42 }]);
+    expect(fc.features[0]!.properties!.score).toBe(42);
+  });
+
+  it("emits score=-1 when excluded_reason is set on the row", () => {
+    const fc = pinsToGeoJSON([
+      { ...basePin, score: null, excluded_reason: "existing_solar" },
+    ]);
+    expect(fc.features[0]!.properties!.score).toBe(-1);
+  });
 });

@@ -18,6 +18,9 @@ export interface ParcelPin {
   assessed_value_usd: number | null;
   year_built: number | null;
   primary_orientation: string | null;
+  /** Pre-computed score from score_snapshot (preferred over client compute). */
+  score?: number | null;
+  excluded_reason?: string | null;
 }
 
 const ORIENTATIONS: ReadonlySet<string> = new Set([
@@ -41,18 +44,30 @@ export function pinsToGeoJSON(pins: ParcelPin[]): GeoJSON.FeatureCollection {
   return {
     type: "FeatureCollection",
     features: pins.map((p) => {
-      const result = scoreParcel({
-        ownerOccupied: p.owner_occupied,
-        estAnnualKwh: null,
-        roofOrientation: normOrientation(p.primary_orientation),
-        hasExistingSolar: p.has_existing_solar,
-        assessedValue:
-          p.assessed_value_usd !== null ? Number(p.assessed_value_usd) : null,
-        yearBuilt: p.year_built,
-        neighborPermitCount: 0,
-        recentRateHike: false,
-        recentlySold: false,
-      });
+      // Prefer the precomputed snapshot when present (server-authoritative);
+      // otherwise compute on the fly from the available fields.
+      let score: number | null;
+      if (p.score !== undefined && p.score !== null) {
+        score = p.score;
+      } else if (p.excluded_reason) {
+        score = null;
+      } else {
+        const result = scoreParcel({
+          ownerOccupied: p.owner_occupied,
+          estAnnualKwh: null,
+          roofOrientation: normOrientation(p.primary_orientation),
+          hasExistingSolar: p.has_existing_solar,
+          assessedValue:
+            p.assessed_value_usd !== null
+              ? Number(p.assessed_value_usd)
+              : null,
+          yearBuilt: p.year_built,
+          neighborPermitCount: 0,
+          recentRateHike: false,
+          recentlySold: false,
+        });
+        score = result.score;
+      }
       return {
         type: "Feature",
         id: p.id,
@@ -60,7 +75,7 @@ export function pinsToGeoJSON(pins: ParcelPin[]): GeoJSON.FeatureCollection {
           id: p.id,
           address: p.address_line1,
           existing: p.has_existing_solar ? 1 : 0,
-          score: result.score ?? -1,
+          score: score ?? -1,
         },
         geometry: { type: "Point", coordinates: [p.lon, p.lat] },
       };

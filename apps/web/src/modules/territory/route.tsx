@@ -2,6 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import maplibregl, { Map as MlMap } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { fetchParcelsInBbox, pinsToGeoJSON } from "./repo.js";
+import {
+  ParcelDetailSheet,
+  type ParcelDetail,
+} from "./ParcelDetailSheet.js";
 
 /**
  * Territory map view.
@@ -19,6 +23,7 @@ export function TerritoryRoute() {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MlMap | null>(null);
   const [parcelCount, setParcelCount] = useState<number>(0);
+  const [selected, setSelected] = useState<ParcelDetail | null>(null);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -128,34 +133,27 @@ export function TerritoryRoute() {
     map.on("idle", refresh);
     map.on("moveend", refresh);
 
-    // Click a parcel pin → popup with score + address.
+    // Click a parcel pin → open the detail sheet.
     map.on("click", "parcels-circle", (ev) => {
       const f = ev.features?.[0];
       if (!f) return;
       const props = f.properties as
-        | { address?: string; score?: number; existing?: number }
+        | { id?: string; address?: string; score?: number; existing?: number }
         | undefined;
       const coords = (f.geometry as GeoJSON.Point).coordinates as [
         number,
         number,
       ];
-      const score = props?.score ?? -1;
-      const isExcluded = (props?.existing ?? 0) === 1 || score < 0;
-      const html = `
-        <div style="font-family: system-ui; font-size: 12px; min-width: 180px">
-          <div style="font-weight: 600; margin-bottom: 4px">${
-            props?.address ?? "(unknown address)"
-          }</div>
-          ${
-            isExcluded
-              ? `<div style="color:#64748b">Existing solar — excluded from scoring.</div>`
-              : `<div>Knock score: <span style="font-weight:600">${score}</span> / 100</div>`
-          }
-        </div>`;
-      new maplibregl.Popup({ closeButton: true })
-        .setLngLat(coords)
-        .setHTML(html)
-        .addTo(map);
+      setSelected({
+        id: props?.id ?? "",
+        address: props?.address ?? "(unknown address)",
+        // Hardcoded VA for now; expansion to TN/etc. wires this from the row.
+        state: "VA",
+        lat: coords[1],
+        lon: coords[0],
+        score: props?.score ?? -1,
+        existing: (props?.existing ?? 0) === 1,
+      });
     });
     map.on("mouseenter", "parcels-circle", () => {
       map.getCanvas().style.cursor = "pointer";
@@ -173,7 +171,7 @@ export function TerritoryRoute() {
   }, []);
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="relative flex h-full flex-col">
       <header className="border-b bg-white p-4">
         <div className="flex items-baseline justify-between">
           <h1 className="text-2xl font-bold">Territory</h1>
@@ -196,6 +194,7 @@ export function TerritoryRoute() {
         </div>
       </header>
       <div ref={containerRef} className="flex-1" />
+      <ParcelDetailSheet parcel={selected} onClose={() => setSelected(null)} />
     </div>
   );
 }
