@@ -1,10 +1,19 @@
-import { STAGES, useLeadsByStage } from "./repo.js";
+import { STAGES, moveLeadStage, useLeadsByStage, type Stage } from "./repo.js";
 
 /**
  * Pipeline view — kanban of leads by stage. Reads live from Dexie.
+ * Each card has compact ◄ ► chevrons to nudge a lead between stages
+ * without dragging — works equally well with a thumb on the truck dash.
  */
 export function PipelineRoute() {
   const grouped = useLeadsByStage();
+
+  const shift = (id: string, currentStage: Stage, dir: -1 | 1) => {
+    const i = STAGES.indexOf(currentStage);
+    const next = STAGES[i + dir];
+    if (!next) return;
+    void moveLeadStage(id, next);
+  };
 
   return (
     <div className="flex h-full flex-col p-4">
@@ -14,7 +23,7 @@ export function PipelineRoute() {
       </header>
       <div className="flex-1 overflow-x-auto">
         <div className="flex h-full gap-3">
-          {STAGES.map((stage) => {
+          {STAGES.map((stage, stageIdx) => {
             const leads = grouped?.[stage] ?? [];
             return (
               <div
@@ -43,6 +52,26 @@ export function PipelineRoute() {
                         </div>
                         <div className="text-slate-500">
                           {l.phone ?? l.email ?? l.parcel_id.slice(0, 8)}
+                        </div>
+                        <div className="mt-1 flex items-center justify-between">
+                          <button
+                            type="button"
+                            disabled={stageIdx === 0}
+                            onClick={() => shift(l.id, stage, -1)}
+                            className="rounded px-1 text-slate-400 hover:bg-slate-100 disabled:opacity-30"
+                            aria-label="Move left"
+                          >
+                            ◄
+                          </button>
+                          <button
+                            type="button"
+                            disabled={stageIdx === STAGES.length - 1}
+                            onClick={() => shift(l.id, stage, 1)}
+                            className="rounded px-1 text-slate-400 hover:bg-slate-100 disabled:opacity-30"
+                            aria-label="Move right"
+                          >
+                            ►
+                          </button>
                         </div>
                       </div>
                     ))

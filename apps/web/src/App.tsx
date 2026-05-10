@@ -19,6 +19,9 @@ const PipelineRoute = lazy(() =>
 const SettingsRoute = lazy(() =>
   import("@/modules/settings/index.js").then((m) => ({ default: m.SettingsRoute })),
 );
+const BillCaptureRoute = lazy(() =>
+  import("@/modules/bill/index.js").then((m) => ({ default: m.BillCaptureRoute })),
+);
 
 function RouteFallback() {
   return (
@@ -55,6 +58,7 @@ export default function App() {
           <Route path="/territory" element={<TerritoryRoute />} />
           <Route path="/walk" element={<WalkRoute />} />
           <Route path="/pipeline" element={<PipelineRoute />} />
+          <Route path="/bill" element={<BillCaptureRoute />} />
           <Route path="/settings" element={<SettingsRoute />} />
           <Route path="*" element={<Navigate to="/territory" replace />} />
         </Route>

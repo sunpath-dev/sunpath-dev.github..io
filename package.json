@@ -18,6 +18,7 @@
     "lint": "pnpm --filter web lint",
     "typecheck": "pnpm -r --parallel exec tsc --noEmit",
     "test": "pnpm -r test --if-present",
+    "test:e2e": "playwright test",
     "build": "pnpm -r build",
     "dev": "pnpm --filter web dev",
     "ingest:parcels": "tsx scripts/ingest-parcels.ts"

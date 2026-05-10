@@ -4,6 +4,7 @@ const tabs = [
   { to: "/territory", label: "Map" },
   { to: "/walk", label: "Walk" },
   { to: "/pipeline", label: "Pipeline" },
+  { to: "/bill", label: "Bill" },
   { to: "/settings", label: "Settings" },
 ];
 
