@@ -127,6 +127,43 @@ export function TerritoryRoute() {
 
     map.on("idle", refresh);
     map.on("moveend", refresh);
+
+    // Click a parcel pin → popup with score + address.
+    map.on("click", "parcels-circle", (ev) => {
+      const f = ev.features?.[0];
+      if (!f) return;
+      const props = f.properties as
+        | { address?: string; score?: number; existing?: number }
+        | undefined;
+      const coords = (f.geometry as GeoJSON.Point).coordinates as [
+        number,
+        number,
+      ];
+      const score = props?.score ?? -1;
+      const isExcluded = (props?.existing ?? 0) === 1 || score < 0;
+      const html = `
+        <div style="font-family: system-ui; font-size: 12px; min-width: 180px">
+          <div style="font-weight: 600; margin-bottom: 4px">${
+            props?.address ?? "(unknown address)"
+          }</div>
+          ${
+            isExcluded
+              ? `<div style="color:#64748b">Existing solar — excluded from scoring.</div>`
+              : `<div>Knock score: <span style="font-weight:600">${score}</span> / 100</div>`
+          }
+        </div>`;
+      new maplibregl.Popup({ closeButton: true })
+        .setLngLat(coords)
+        .setHTML(html)
+        .addTo(map);
+    });
+    map.on("mouseenter", "parcels-circle", () => {
+      map.getCanvas().style.cursor = "pointer";
+    });
+    map.on("mouseleave", "parcels-circle", () => {
+      map.getCanvas().style.cursor = "";
+    });
+
     mapRef.current = map;
     return () => {
       cancelled = true;
