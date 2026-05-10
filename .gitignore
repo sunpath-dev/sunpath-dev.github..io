@@ -21,6 +21,7 @@ dev-dist/
 .env.*.local
 !.env.example
 .secrets.local
+.supabase-bootstrap.sql
 
 # Supabase
 supabase/.branches/
