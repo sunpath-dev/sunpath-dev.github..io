@@ -100,6 +100,17 @@ const BY_STATE: Record<string, Incentive[]> = {
   ],
 };
 
+function mapDsireType(raw: string): Incentive["kind"] {
+  const r = raw.toLowerCase();
+  if (r.includes("tax credit")) return "tax_credit";
+  if (r.includes("rebate")) return "rebate";
+  if (r.includes("loan") || r.includes("financing")) return "loan";
+  if (r.includes("exempt")) return "exemption";
+  if (r.includes("net meter") || r.includes("performance") || r.includes("production")) return "performance_payment";
+  if (r.includes("grant")) return "grant";
+  return "other";
+}
+
 function fallback(state: string): Incentive[] {
   const upper = state.toUpperCase();
   const stateRows = BY_STATE[upper] ?? [];
@@ -139,10 +150,50 @@ Deno.serve(async (req: Request) => {
   }
   const stateUpper = body.state.toUpperCase();
 
-  // Live DSIRE API integration — opt-in via env. The exact endpoint
-  // shape depends on the DSIRE access tier; left as a TODO for now.
-  // const apiKey = Deno.env.get("DSIRE_API_KEY");
-  // if (apiKey) { ... }
+  // Live DSIRE API integration — opt-in via DSIRE_API_KEY Supabase secret.
+  // Signup: https://programs.dsireusa.org/  → "API Access" tab.
+  // When the key is set, real program data is returned for the state.
+  const dsireKey = Deno.env.get("DSIRE_API_KEY");
+  if (dsireKey) {
+    try {
+      const dsireUrl =
+        `https://programs.dsireusa.org/api/v1/programs` +
+        `?state=${stateUpper}&technology=Solar%20Photovoltaics&active=true&limit=50`;
+      const dsireRes = await fetch(dsireUrl, {
+        headers: {
+          "Authorization": `Bearer ${dsireKey}`,
+          "Accept": "application/json",
+          "User-Agent": "(sunpath.dev, hello@sunpath.dev)",
+        },
+      });
+      if (dsireRes.ok) {
+        // deno-lint-ignore no-explicit-any
+        const dsireData: any = await dsireRes.json();
+        // Normalize DSIRE response shape to our Incentive schema.
+        // deno-lint-ignore no-explicit-any
+        const livePrograms: Incentive[] = (dsireData?.data ?? dsireData?.programs ?? []).map((p: any) => ({
+          id: `dsire:${p.id ?? p.code ?? Math.random()}`,
+          name: p.name ?? p.programName ?? "Unknown program",
+          scope: (p.stateAbbr && p.stateAbbr !== "US") ? "state" : p.utility ? "utility" : "state",
+          state: stateUpper,
+          summary: p.summary ?? p.programSummary ?? p.description ?? "",
+          kind: mapDsireType(p.programType ?? p.type ?? ""),
+          max_benefit_usd: p.maxDollarAmount ?? p.maxIncentive ?? null,
+          benefit_pct: p.percentageIncentive ?? null,
+          expires_on: p.endDate ?? p.expirationDate ?? null,
+          source_url: p.programUrl ?? p.websiteUrl ?? `https://programs.dsireusa.org/system/program/detail/${p.id}`,
+        }));
+        if (livePrograms.length > 0) {
+          return Response.json(
+            { state: stateUpper, fetched_at: new Date().toISOString(), is_fallback: false, programs: [...FEDERAL, ...livePrograms] },
+            { headers: CORS_HEADERS },
+          );
+        }
+      }
+    } catch {
+      // DSIRE unavailable — fall through to hardcoded list
+    }
+  }
 
   const programs = fallback(stateUpper);
   const payload = {
