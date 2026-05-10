@@ -7,24 +7,63 @@ interface GeoResult {
   displayName: string;
 }
 
+// ArcGIS World Geocoding — no key, full US rural coverage including USPS addresses.
+// Falls back to Nominatim for international or if ArcGIS returns no candidates.
 async function geocodeAddress(query: string): Promise<GeoResult | null> {
-  const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1&countrycodes=us`;
-  const res = await fetch(url, {
-    headers: { "Accept-Language": "en", "User-Agent": "Sunpath-POC/1.0" },
-  });
-  if (!res.ok) return null;
-  const data = (await res.json()) as Array<{
-    lat: string;
-    lon: string;
-    display_name: string;
-  }>;
-  const first = data[0];
-  if (!first) return null;
-  return {
-    lat: parseFloat(first.lat),
-    lon: parseFloat(first.lon),
-    displayName: first.display_name,
-  };
+  try {
+    const arcgisUrl =
+      `https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates` +
+      `?SingleLine=${encodeURIComponent(query)}&f=json&maxLocations=1&outFields=Match_addr&countryCode=USA`;
+    const res = await fetch(arcgisUrl);
+    if (res.ok) {
+      const data = (await res.json()) as {
+        candidates?: Array<{
+          address: string;
+          location: { x: number; y: number };
+          score: number;
+        }>;
+      };
+      const best = data.candidates?.[0];
+      if (best && best.score >= 70) {
+        return {
+          lat: best.location.y,
+          lon: best.location.x,
+          displayName: best.address,
+        };
+      }
+    }
+  } catch {
+    // fall through to Nominatim
+  }
+
+  // Nominatim fallback
+  try {
+    const nomUrl =
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}` +
+      `&format=json&limit=1&countrycodes=us`;
+    const res = await fetch(nomUrl, {
+      headers: { "Accept-Language": "en", "User-Agent": "Sunpath-POC/1.0" },
+    });
+    if (res.ok) {
+      const data = (await res.json()) as Array<{
+        lat: string;
+        lon: string;
+        display_name: string;
+      }>;
+      const first = data[0];
+      if (first) {
+        return {
+          lat: parseFloat(first.lat),
+          lon: parseFloat(first.lon),
+          displayName: first.display_name,
+        };
+      }
+    }
+  } catch {
+    // both failed
+  }
+
+  return null;
 }
 
 interface Props {
@@ -48,10 +87,12 @@ export function AddressSearch({ placeholder = "Search an address…", className 
     try {
       const result = await geocodeAddress(q);
       if (!result) {
-        setError("Address not found. Try a more specific address.");
+        setError("Address not found. Try including city and state.");
         return;
       }
-      navigate(`/territory?lat=${result.lat}&lon=${result.lon}&q=${encodeURIComponent(result.displayName)}`);
+      navigate(
+        `/territory?lat=${result.lat}&lon=${result.lon}&q=${encodeURIComponent(result.displayName)}`,
+      );
     } catch {
       setError("Search failed. Check your connection.");
     } finally {
