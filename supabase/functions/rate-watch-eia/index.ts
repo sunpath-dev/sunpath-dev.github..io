@@ -39,7 +39,7 @@ interface EiaRow {
   period: string;
   stateid: string;
   sectorid: string;
-  price?: number; // cents/kWh
+  price?: number | string | null; // cents/kWh — EIA returns as string in v2
   utilityid?: string;
 }
 
@@ -152,16 +152,18 @@ Deno.serve(async (req: Request) => {
     }
 
     // Upsert observations. EIA price is in cents/kWh -> convert to USD/kWh.
+    // EIA v2 returns price as a string (e.g. "15.96"), not a number.
     const upsertRows = eiaRows
-      .filter((r) => typeof r.price === "number" && r.period)
+      .filter((r) => r.price != null && r.price !== "" && r.period)
       .map((r) => ({
         sector: "RES",
         state,
         utility_id: null,
         period: r.period,
-        rate_kwh_usd: Number((r.price! / 100).toFixed(4)),
+        rate_kwh_usd: Number((Number(r.price) / 100).toFixed(4)),
         source: "eia.v2",
-      }));
+      }))
+      .filter((r) => Number.isFinite(r.rate_kwh_usd) && r.rate_kwh_usd > 0);
 
     if (upsertRows.length === 0) continue;
 

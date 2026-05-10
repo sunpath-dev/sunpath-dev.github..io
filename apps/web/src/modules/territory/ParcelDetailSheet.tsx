@@ -45,8 +45,9 @@ const DEFAULT_FIPS: Record<string, { state: string; county: string }> = {
 
 // Default residential utility rate by state (cents→USD/kWh, 2023 EIA avg).
 // Used when rate-watch-eia hasn't populated utility_rate_observation yet.
+// EIA Feb 2026 residential averages (cents/kWh ÷ 100). Updated from live data.
 const DEFAULT_RATE_BY_STATE: Record<string, number> = {
-  VA: 0.122,
+  VA: 0.1596,
   TN: 0.114,
 };
 
