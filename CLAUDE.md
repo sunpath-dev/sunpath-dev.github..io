@@ -14,8 +14,10 @@ The full plan (phases 0-5, deferred items, public data sources, scoring) is in [
 - Region: `us-east-1`
 - Project ref: `sclisaylpwnffkkyepow`
 - Project URL: `https://sclisaylpwnffkkyepow.supabase.co`
-- Do not commit secrets. The anon key, service-role key, DB password, and access token stay in GitHub Actions secrets or Supabase project settings.
-- Do not assume GitHub integration already applied migrations. As of 2026-05-10, REST probes for `parcel`, `rep`, `door_event`, `lead`, and `trigger_event` still returned `404`, which means the remote schema was not yet verified as present.
+- Do not commit secrets. The anon key, service-role key, DB password, and access token stay in GitHub Actions secrets or Supabase project settings (or `.secrets.local`, gitignored, for local-only use).
+- Backend is live: all 19 migrations applied and all 19 edge functions deployed on 2026-05-10 via `supabase db push --include-all` and `supabase functions deploy` (run locally with `SUPABASE_ACCESS_TOKEN` set). REST probes for `parcel`, `rep`, `door_event`, `lead`, `trigger_event`, `bill_capture`, `hoa_zone`, `audit_log` all return `200`.
+- After running migrations through the CLI, you may need to invalidate the PostgREST schema cache. The reliable way: run a DDL change (e.g. `comment on schema public is 'reload-' || ...`) plus `notify pgrst, 'reload schema';` via the management API `POST /v1/projects/<ref>/database/query`.
+- The repo `supabase` GitHub Actions workflow is still gated on `vars.SUPABASE_ENABLED == 'true'` and that variable is not currently set; the active GitHub PAT cannot set repo Actions variables/secrets, so future Supabase deploys are done from the local CLI until repo admin can enable the workflow.
 
 ## Stack at a glance
 
