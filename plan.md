@@ -213,10 +213,10 @@ Goal: rep checks the day before "should I knock tomorrow, and where?" and gets a
 
 **Data protection**
 - Encrypt sensitive columns at rest (`bill_capture.image_url` storage objects, `lead.phone`, `lead.email`, `lead.contact_name`) using `pgsodium` or column-level encryption in Postgres.
-- Auto-redact account numbers from bill images **before** they hit storage (already planned as Phase 5.2 — promote to mandatory).
+- Auto-redact account numbers from bill images **before** they hit storage (already planned as Phase 5.2 — promote to mandatory). ✅ shipped (Tesseract OCR + redactor).
 - Storage bucket policies: signed URLs only, short TTL, no public reads.
-- PII retention policy: define how long door notes, voice memos, photos, and bill images live; implement a scheduled purge function.
-- Audit log table: every read/write of PII captured with rep_id + timestamp + IP.
+- PII retention policy: define how long door notes, voice memos, photos, and bill images live; implement a scheduled purge function. ✅ shipped (migration 0016: `pii_retention_policy` + `purge_expired_pii()` + daily cron + `erase_homeowner_pii()` for GDPR/CCPA).
+- Audit log table: every read/write of PII captured with rep_id + timestamp + IP. ✅ shipped (migration 0013: `audit_log` + `record_audit()`).
 
 **Auth & access**
 - Re-evaluate magic-link-only — consider TOTP / WebAuthn for reps with sensitive territory data.
@@ -227,17 +227,17 @@ Goal: rep checks the day before "should I knock tomorrow, and where?" and gets a
 **Compliance**
 - **TCPA** review before any SMS/auto-call functionality (design §10 already flags this).
 - **State DNC list** integration if outbound calling/SMS is added.
-- **GDPR/CCPA-style** data export + delete endpoints per rep and per homeowner contact.
+- **GDPR/CCPA-style** data export + delete endpoints per rep and per homeowner contact. 🟡 partial (`erase_homeowner_pii()` shipped in 0016; export endpoint TBD).
 - **Solar industry**: review state-specific rules on door-to-door sales (cooling-off periods, required disclosures).
 - **Terms of Service + Privacy Policy** drafted and accepted at signup.
 - **Data Processing Agreement** with Supabase if storing PII for users beyond the original rep.
 
 **Operational security**
 - Secrets management hardened: GitHub Actions OIDC instead of long-lived tokens where possible; Supabase access tokens rotated quarterly.
-- `dependabot.yml` + automated security patching.
+- `dependabot.yml` + automated security patching. ✅ shipped.
 - Sentry (Phase 5.3) gets PII scrubbing config.
 - PostHog (Phase 5.3) configured to never capture form values or bill content.
-- Rate limiting on Edge Functions (Supabase has limited built-in support; may need a Cloudflare Worker proxy).
+- Rate limiting on Edge Functions (Supabase has limited built-in support; may need a Cloudflare Worker proxy). ✅ shipped (migration 0015: `rate_limit_check()` RPC + `callback-submit` per-IP 10/hr).
 - Backup + restore procedure tested (Supabase Pro adds PITR — needs to be on by launch).
 
 **Infrastructure**
