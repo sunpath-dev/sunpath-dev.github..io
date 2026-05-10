@@ -287,6 +287,7 @@ These extend the v1.3 design based on conversation. Captured here so the design 
 2. **Calendar integration (Deferred).** See the deferred section. Driver: Google Calendar / iCal / CalDAV read-only OAuth.
 3. **DSIRE API over scraping.** Replaces design §14's "no public API; download CSV" guidance.
 4. **NWS as primary weather source over OpenWeather.** Replaces design §3 / §14 weather guidance for the US market.
+5. **Marketing white paper (`docs/whitepaper.md`).** A print-ready, non-technical explainer for prospective installers/owners — positioning, the rep workflow, the data sources behind the scoring, the privacy posture, and where Sunpath sits relative to existing CRMs. Lives next to the design doc; updated whenever the public-facing pitch changes.
 
 When the design doc is next revised, these should be folded in as v1.4.
 
