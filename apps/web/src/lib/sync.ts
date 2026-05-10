@@ -140,6 +140,41 @@ async function drainBillCaptures(): Promise<void> {
   );
 }
 
+async function drainParcelNotes(): Promise<void> {
+  const pending = await db.parcelNotes
+    .where("synced")
+    .equals(0)
+    .and((n) => n.attempts < MAX_ATTEMPTS)
+    .limit(50)
+    .toArray();
+  if (pending.length === 0) return;
+
+  const payload = pending.map((n) => ({
+    id: n.id,
+    rep_id: n.rep_id,
+    parcel_id: n.parcel_id,
+    body: n.body,
+    created_at: n.created_at,
+    updated_at: n.updated_at,
+  }));
+
+  const { error } = await supabase
+    .from("parcel_note")
+    .upsert(payload, { onConflict: "id" });
+
+  if (error) {
+    await Promise.all(
+      pending.map((n) =>
+        db.parcelNotes.update(n.id, { attempts: n.attempts + 1 }),
+      ),
+    );
+    return;
+  }
+  await Promise.all(
+    pending.map((n) => db.parcelNotes.update(n.id, { synced: 1 })),
+  );
+}
+
 export async function drain(): Promise<void> {
   if (draining) return;
   if (typeof navigator !== "undefined" && navigator.onLine === false) return;
@@ -148,6 +183,7 @@ export async function drain(): Promise<void> {
     await drainDoorEvents();
     await drainLeads();
     await drainBillCaptures();
+    await drainParcelNotes();
   } finally {
     draining = false;
   }

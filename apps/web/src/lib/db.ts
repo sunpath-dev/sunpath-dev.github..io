@@ -36,6 +36,17 @@ export interface DbLead {
   attempts: number;
 }
 
+export interface DbParcelNote {
+  id: string; // client-generated UUID
+  rep_id: string;
+  parcel_id: string;
+  body: string;
+  created_at: string; // ISO
+  updated_at: string; // ISO
+  synced: 0 | 1;
+  attempts: number;
+}
+
 export interface DbBillCapture {
   id: string; // client-generated UUID
   rep_id: string;
@@ -57,6 +68,7 @@ class SunpathDb extends Dexie {
   doorEvents!: Table<DbDoorEvent, string>;
   leads!: Table<DbLead, string>;
   billCaptures!: Table<DbBillCapture, string>;
+  parcelNotes!: Table<DbParcelNote, string>;
 
   constructor() {
     super("sunpath");
@@ -74,6 +86,12 @@ class SunpathDb extends Dexie {
       doorEvents: "&client_event_id, synced, occurred_at, parcel_id, rep_id",
       leads: "&id, synced, stage, parcel_id, rep_id, next_action_at",
       billCaptures: "&id, synced, rep_id, parcel_id, lead_id, created_at",
+    });
+    this.version(4).stores({
+      doorEvents: "&client_event_id, synced, occurred_at, parcel_id, rep_id",
+      leads: "&id, synced, stage, parcel_id, rep_id, next_action_at",
+      billCaptures: "&id, synced, rep_id, parcel_id, lead_id, created_at",
+      parcelNotes: "&id, synced, rep_id, parcel_id, created_at",
     });
   }
 }

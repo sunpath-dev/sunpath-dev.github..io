@@ -1,5 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { db } from "@/lib/db.js";
+import { kickSync } from "@/lib/sync.js";
+import { NoteEditor } from "./NoteEditor.js";
 import {
   CensusContextSchema,
   IncentivesResponseSchema,
@@ -163,6 +166,12 @@ interface BillCapture {
   created_at: string;
 }
 
+interface NoteRow {
+  id: string;
+  body: string;
+  created_at: string;
+}
+
 export function ParcelDetailSheet({ parcel, onClose }: Props) {
   const { session } = useAuth();
   const navigate = useNavigate();
@@ -178,6 +187,12 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
   const [ownerRow, setOwnerRow] = useState<OwnerRow | null>(null);
   const [billCapture, setBillCapture] = useState<BillCapture | null>(null);
   const [showBuildMySolar, setShowBuildMySolar] = useState(false);
+
+  // Notes
+  const [notes, setNotes] = useState<NoteRow[]>([]);
+  const [showNoteEditor, setShowNoteEditor] = useState(false);
+  const [editingNote, setEditingNote] = useState<NoteRow | null>(null);
+  const notesSentinelRef = useRef<HTMLDivElement>(null);
 
   const [showKnockPicker, setShowKnockPicker] = useState(false);
   const [showPitches, setShowPitches] = useState(false);
@@ -333,6 +348,28 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
         if (cancelled || !data) return;
         setBillCapture(data as BillCapture);
       })();
+
+      // Fetch notes from local Dexie first (instant), then refresh from server.
+      void db.parcelNotes
+        .where("parcel_id")
+        .equals(parcel.id)
+        .reverse()
+        .sortBy("created_at")
+        .then((rows) => {
+          if (cancelled) return;
+          setNotes(rows.map((r) => ({ id: r.id, body: r.body, created_at: r.created_at })).reverse());
+        });
+
+      void (async () => {
+        const { data } = await supabase
+          .from("parcel_note")
+          .select("id, body, created_at")
+          .eq("parcel_id", parcel.id)
+          .order("created_at", { ascending: false })
+          .limit(50);
+        if (cancelled || !Array.isArray(data)) return;
+        setNotes((data as NoteRow[]).slice().reverse());
+      })();
     }
 
     return () => {
@@ -351,6 +388,9 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
       setKnockError(null);
       setOwnerRow(null);
       setBillCapture(null);
+      setNotes([]);
+      setShowNoteEditor(false);
+      setEditingNote(null);
     };
   }, [parcel]);
 
@@ -376,6 +416,41 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
       : null;
 
   const finModelIsActual = billCapture?.total_kwh != null;
+
+  const handleSaveNote = async (body: string) => {
+    if (!session) return;
+    const now = new Date().toISOString();
+    if (editingNote) {
+      // Update existing note locally + server.
+      await db.parcelNotes.update(editingNote.id, { body, updated_at: now, synced: 0 });
+      setNotes((prev) =>
+        prev.map((n) => (n.id === editingNote.id ? { ...n, body } : n)),
+      );
+    } else {
+      const id = crypto.randomUUID();
+      await db.parcelNotes.put({
+        id,
+        rep_id: session.user.id,
+        parcel_id: parcel.id,
+        body,
+        created_at: now,
+        updated_at: now,
+        synced: 0,
+        attempts: 0,
+      });
+      setNotes((prev) => [...prev, { id, body, created_at: now }]);
+      setTimeout(() => notesSentinelRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+    }
+    kickSync();
+    setShowNoteEditor(false);
+    setEditingNote(null);
+  };
+
+  const handleDeleteNote = async (id: string) => {
+    await db.parcelNotes.delete(id);
+    await supabase.from("parcel_note").delete().eq("id", id);
+    setNotes((prev) => prev.filter((n) => n.id !== id));
+  };
 
   const handleKnock = async (outcome: DoorOutcome) => {
     if (!session) return;
@@ -791,6 +866,73 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
             </div>
           </section>
         ) : null}
+
+        {/* PROPERTY NOTES */}
+        <section className="mb-3 rounded-lg border bg-white p-3">
+          <div className="mb-2 flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-slate-900">
+              Notes
+              {notes.length > 0 && (
+                <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-700">
+                  {notes.length}
+                </span>
+              )}
+            </h3>
+            {!showNoteEditor && (
+              <button
+                type="button"
+                onClick={() => { setEditingNote(null); setShowNoteEditor(true); }}
+                className="rounded bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700 hover:bg-amber-100"
+              >
+                + Add note
+              </button>
+            )}
+          </div>
+
+          {showNoteEditor && (
+            <NoteEditor
+              initialBody={editingNote?.body}
+              onSave={(body) => void handleSaveNote(body)}
+              onCancel={() => { setShowNoteEditor(false); setEditingNote(null); }}
+            />
+          )}
+
+          {notes.length > 0 ? (
+            <ul className="mt-2 space-y-2">
+              {notes.map((note) => (
+                <li key={note.id} className="rounded border border-slate-100 bg-slate-50 p-2 text-xs">
+                  <p className="whitespace-pre-wrap text-slate-800 leading-relaxed">{note.body}</p>
+                  <div className="mt-1.5 flex items-center gap-3">
+                    <span className="text-slate-400">
+                      {new Date(note.created_at).toLocaleDateString(undefined, {
+                        month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
+                      })}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => { setEditingNote(note); setShowNoteEditor(true); }}
+                      className="text-amber-600 hover:underline"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void handleDeleteNote(note.id)}
+                      className="text-red-400 hover:underline"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            !showNoteEditor && (
+              <p className="text-xs text-slate-400">No notes yet — tap + Add note or use voice.</p>
+            )
+          )}
+          <div ref={notesSentinelRef} />
+        </section>
 
         {/* ACTION BUTTONS */}
         <div className="mt-4 flex flex-col gap-2">
