@@ -10,7 +10,7 @@ import {
 } from "@sunpath/shared";
 import { supabase } from "@/lib/supabase.js";
 import { useAuth } from "@/lib/auth.js";
-import { recordDoorEvent } from "@/modules/walk/repo.js";
+import { recordDoorEvent } from "@/lib/door-events.js";
 
 interface HoaBadge {
   name: string;

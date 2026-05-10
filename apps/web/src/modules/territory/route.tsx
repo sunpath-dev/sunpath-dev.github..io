@@ -64,7 +64,7 @@ export function TerritoryRoute() {
   const lastPinsRef = useRef<ParcelPin[]>([]);
   const [isSatellite, setIsSatellite] = useState(false);
   const [searchParams] = useSearchParams();
-  const [geocodeLabel, setGeocodeLabel] = useState<string | null>(null);
+  const geocodeLabel = isFinite(parseFloat(searchParams.get("lat") ?? "")) ? searchParams.get("q") : null;
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -200,9 +200,7 @@ export function TerritoryRoute() {
   useEffect(() => {
     const lat = parseFloat(searchParams.get("lat") ?? "");
     const lon = parseFloat(searchParams.get("lon") ?? "");
-    const q = searchParams.get("q");
     if (!isFinite(lat) || !isFinite(lon)) return;
-    setGeocodeLabel(q);
     const map = mapRef.current;
     if (map) {
       map.flyTo({ center: [lon, lat], zoom: 15, duration: 1200 });

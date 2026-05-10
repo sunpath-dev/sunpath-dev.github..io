@@ -60,7 +60,6 @@ export function TodayRoute() {
   const navigate = useNavigate();
   const [geo, setGeo] = useState<{ lat: number; lon: number } | null>(null);
   const [weather, setWeather] = useState<Weather | null>(null);
-  const [loadingWeather, setLoadingWeather] = useState(false);
   const [topDoors, setTopDoors] = useState<TopDoor[]>([]);
   const [stats, setStats] = useState<DoorStats>({ today: 0, week: 0 });
   const [showPitches, setShowPitches] = useState(false);
@@ -77,14 +76,14 @@ export function TodayRoute() {
 
   useEffect(() => {
     if (!geo) return;
-    setLoadingWeather(true);
+    let cancelled = false;
     supabase.functions
       .invoke("weather-now", { body: { lat: geo.lat, lon: geo.lon } })
       .then(({ data }) => {
-        if (data) setWeather(data as Weather);
+        if (!cancelled && data) setWeather(data as Weather);
       })
-      .catch(() => {})
-      .finally(() => setLoadingWeather(false));
+      .catch(() => {});
+    return () => { cancelled = true; };
   }, [geo]);
 
   useEffect(() => {
@@ -167,8 +166,6 @@ export function TodayRoute() {
               ) : null}
             </div>
           </>
-        ) : loadingWeather ? (
-          <div className="mt-1 text-sm opacity-75">Fetching weather…</div>
         ) : !geo ? (
           <div className="mt-1 text-sm opacity-75">
             Allow location to see weather
