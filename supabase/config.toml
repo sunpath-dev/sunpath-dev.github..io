@@ -2,6 +2,7 @@
 # Full reference: https://supabase.com/docs/guides/local-development/cli/config
 
 project_id = "sunpath"
+# linked: sclisaylpwnffkkyepow (us-east-1)
 
 [api]
 enabled = true
