@@ -11,6 +11,12 @@ if (!url || !anon) {
   )
 }
 
-export const supabase = createClient(url ?? '', anon ?? '', {
-  auth: { persistSession: true, autoRefreshToken: true },
-})
+// `createClient` validates the URL synchronously at module load. When env
+// is missing (e.g. CI without secrets) we substitute a syntactically valid
+// placeholder so the bundle keeps working as a static shell — the auth
+// hook short-circuits on the same condition and renders the sign-in page.
+export const supabase = createClient(
+  url || 'https://placeholder.supabase.co',
+  anon || 'placeholder-anon-key',
+  { auth: { persistSession: true, autoRefreshToken: true } },
+)
