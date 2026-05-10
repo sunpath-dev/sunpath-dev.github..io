@@ -190,6 +190,15 @@ export function TerritoryRoute() {
             >
               Export CSV
             </button>
+            <button
+              type="button"
+              onClick={() => void downloadDoorcards(lastPinsRef.current)}
+              disabled={parcelCount === 0}
+              className="rounded border border-amber-500 px-2 py-1 text-xs font-semibold text-amber-700 hover:bg-amber-50 disabled:opacity-40"
+              title="Generate quarter-sheet doorcard PDFs for all parcels in view"
+            >
+              Print doorcards
+            </button>
           </div>
         </div>
         <p className="text-sm text-slate-600">
@@ -249,4 +258,42 @@ function downloadWalkListCsv(pins: ParcelPin[]): void {
 function csvCell(s: string): string {
   if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
   return s;
+}
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+const DOORCARD_BATCH_CAP = 200;
+
+async function downloadDoorcards(pins: ParcelPin[]): Promise<void> {
+  if (pins.length === 0) return;
+  if (!SUPABASE_URL) {
+    alert("Supabase URL not configured for this build.");
+    return;
+  }
+  const ids = pins
+    .filter((p) => !p.has_existing_solar)
+    .map((p) => p.id)
+    .slice(0, DOORCARD_BATCH_CAP);
+  if (ids.length === 0) return;
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/functions/v1/doorcard-pdf`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ parcel_ids: ids }),
+      },
+    );
+    if (!res.ok) throw new Error(`doorcard ${res.status}`);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `doorcards-${new Date().toISOString().slice(0, 10)}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch (err) {
+    alert(`Doorcard print failed: ${err instanceof Error ? err.message : err}`);
+  }
 }
