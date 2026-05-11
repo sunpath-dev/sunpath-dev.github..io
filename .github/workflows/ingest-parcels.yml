@@ -38,7 +38,7 @@ jobs:
         run: pnpm --filter parcel-adapters build
       - name: Run ingest
         env:
-          SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           ARGS="--adapter ${{ inputs.adapter }}"
