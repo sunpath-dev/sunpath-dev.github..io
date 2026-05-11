@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { useAuth } from "@/lib/auth.js";
+import { useState, useEffect } from "react";
+import { useAuth, enterAsPoc } from "@/lib/auth.js";
+import { supabase } from "@/lib/supabase.js";
 import { Button } from "@sunpath/ui";
 import { PushOptIn } from "./PushOptIn.js";
 import { AdminPanel } from "@/components/AdminPanel.js";
@@ -73,7 +74,21 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 export function SettingsRoute() {
-  const { session, signOut } = useAuth();
+  const { session, rep, signOut } = useAuth();
+  const [displayName, setDisplayName] = useState<string | null>(null);
+  const [pocTaps, setPocTaps] = useState(0);
+
+  useEffect(() => {
+    if (!rep?.id || rep.id === "poc-guest") return;
+    void supabase.from("rep").select("display_name").eq("id", rep.id).maybeSingle()
+      .then(({ data }) => { setDisplayName((data as { display_name?: string | null } | null)?.display_name ?? null); });
+  }, [rep?.id]);
+
+  const handleVersionTap = () => {
+    const n = pocTaps + 1;
+    setPocTaps(n);
+    if (n >= 5) enterAsPoc();
+  };
   return (
     <div className="flex flex-1 min-h-0 flex-col overflow-y-auto bg-slate-50">
       <header className="border-b bg-white px-4 py-4">
@@ -208,17 +223,43 @@ export function SettingsRoute() {
           </div>
         </Section>
 
-        {/* Account */}
+        {/* Account / Profile */}
         <div className="rounded-xl border bg-white shadow-sm px-4 py-3 space-y-2">
           <div className="text-xs font-semibold uppercase tracking-wide text-slate-700">Account</div>
-          <dl className="space-y-1 text-sm">
+          <dl className="space-y-1.5 text-sm">
             <div className="flex justify-between">
-              <dt className="text-slate-600">Signed in as</dt>
-              <dd className="font-medium text-slate-800">{session?.user?.email ?? "—"}</dd>
+              <dt className="text-slate-600">Name</dt>
+              <dd className="font-medium text-slate-800">
+                {rep?.id === "poc-guest" ? "POC Guest" : (displayName ?? "—")}
+              </dd>
             </div>
             <div className="flex justify-between">
+              <dt className="text-slate-600">Email</dt>
+              <dd className="font-medium text-slate-800">{session?.user?.email ?? "—"}</dd>
+            </div>
+            <div className="flex justify-between items-center">
+              <dt className="text-slate-600">Role</dt>
+              <dd>
+                <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${rep?.role === "admin" ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-700"}`}>
+                  {rep?.role ?? "rep"}
+                </span>
+              </dd>
+            </div>
+            {session?.user?.identities && session.user.identities.length > 0 ? (
+              <div className="flex justify-between">
+                <dt className="text-slate-600">Sign-in</dt>
+                <dd className="text-slate-700 capitalize">
+                  {session.user.identities.map((i) => i.provider === "azure" ? "Microsoft" : i.provider).join(", ")}
+                </dd>
+              </div>
+            ) : null}
+            <div className="flex justify-between items-center">
               <dt className="text-slate-600">Version</dt>
-              <dd className="font-mono text-xs text-slate-700">v{__APP_VERSION__} · {__GIT_HASH__}</dd>
+              <dd>
+                <button type="button" onClick={handleVersionTap} className="font-mono text-xs text-slate-700 select-none" aria-label="version">
+                  v{__APP_VERSION__} · {__GIT_HASH__}
+                </button>
+              </dd>
             </div>
           </dl>
         </div>
