@@ -240,6 +240,37 @@ export function ReportsRoute() {
     URL.revokeObjectURL(url);
   };
 
+  const exportText = () => {
+    const label = periodLabel(period);
+    const lines: string[] = [
+      `SUNPATH ACTIVITY REPORT — ${label.toUpperCase()}`,
+      `Generated: ${new Date().toLocaleString()}`,
+      "",
+      "SUMMARY",
+      `  Doors knocked:  ${total}${trend !== null ? ` (${trend >= 0 ? "+" : ""}${trend}% vs prior period)` : ""}`,
+      `  Contact rate:   ${contactRate}%`,
+      `  Callbacks:      ${callbacks}`,
+      `  Sits:           ${sits}`,
+      `  Sales:          ${sales}  (${saleRate}% close rate)`,
+      "",
+      "OUTCOME BREAKDOWN",
+      ...stats.map((s) => `  ${s.label.padEnd(12)} ${String(s.count).padStart(4)}`),
+      "",
+      "RECENT ACTIVITY",
+      ...events.slice(0, 50).map((e) =>
+        `  ${shortDate(e.occurred_at)} ${shortTime(e.occurred_at).padEnd(8)} ${(e.address ?? e.parcel_id).slice(0, 35).padEnd(36)} ${e.outcome}`
+      ),
+      ...(events.length > 50 ? [`  … ${events.length - 50} more (export CSV for full list)`] : []),
+    ];
+    const blob = new Blob([lines.join("\n")], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `sunpath-report-${new Date().toISOString().slice(0, 10)}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const isPoc = rep?.id === "poc-guest";
 
   return (
@@ -252,13 +283,14 @@ export function ReportsRoute() {
           <p className="text-xs text-slate-500 mt-0.5">Your door activity and conversion data</p>
         </div>
         {total > 0 && (
-          <button
-            type="button"
-            onClick={exportCsv}
-            className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
-          >
-            Export CSV
-          </button>
+          <div className="flex gap-2">
+            <button type="button" onClick={exportText} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">
+              Text
+            </button>
+            <button type="button" onClick={exportCsv} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">
+              CSV
+            </button>
+          </div>
         )}
       </div>
 
@@ -427,16 +459,35 @@ export function ReportsRoute() {
                   })}
                   {events.length > 50 && (
                     <li className="px-4 py-3 text-xs text-slate-400 text-center">
-                      Export CSV to see all {events.length} events
+                      Export CSV or Text to see all {events.length} events
                     </li>
                   )}
                 </ul>
               )}
             </section>
 
+            {/* Property notes */}
+            <section className="rounded-xl border bg-white shadow-sm overflow-hidden">
+              <div className="px-4 py-3 border-b bg-slate-50 flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-slate-800">Property notes</h2>
+                <span className="rounded border border-slate-200 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-400">Coming soon</span>
+              </div>
+              <div className="px-4 py-4 text-sm text-slate-500 space-y-1.5">
+                <p>Voice memos, text notes, and photos captured on the porch will appear here for search and review.</p>
+                <p className="text-xs text-slate-400">Tap any property → "Add note" to start capturing. Notes are tied to the address and show up across Today, Properties, and Reports.</p>
+              </div>
+            </section>
+
             {/* Export footer */}
             {total > 0 && (
-              <div className="flex justify-center pb-2">
+              <div className="flex justify-center gap-3 pb-2">
+                <button
+                  type="button"
+                  onClick={exportText}
+                  className="rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  Export {periodLabel(period)} as Text
+                </button>
                 <button
                   type="button"
                   onClick={exportCsv}
