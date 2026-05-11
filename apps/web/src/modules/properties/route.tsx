@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { getRoute, type RouteEntry } from "@/lib/route.js";
 import { DashboardCard } from "@/components/DashboardCard.js";
 import { DashboardCardList } from "@/components/DashboardCardList.js";
@@ -48,18 +48,24 @@ function ScoreDot({ score }: { score: number }) {
 
 export function PropertiesRoute() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { order, collapsed, reorder, toggleCollapsed, resetLayout } =
     useDashboardLayout(STORAGE_KEY, DEFAULT_ORDER);
 
   const [route, setRoute] = useState<RouteEntry[]>(() => getRoute());
   const [recent, setRecent] = useState<RecentProperty[]>(loadRecent);
 
+  // Refresh on every navigation (e.g. returning from a property detail page).
+  useEffect(() => {
+    setRoute(getRoute());
+    setRecent(loadRecent());
+  }, [location.pathname]);
+
   useEffect(() => {
     const refresh = () => {
       setRoute(getRoute());
       setRecent(loadRecent());
     };
-    refresh();
     window.addEventListener("focus", refresh);
     return () => window.removeEventListener("focus", refresh);
   }, []);

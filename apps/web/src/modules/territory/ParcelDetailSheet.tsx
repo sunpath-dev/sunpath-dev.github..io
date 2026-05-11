@@ -553,7 +553,7 @@ export function ParcelDetailSheet({ parcel, onClose, asPage = false }: Props) {
               {!asPage && (
                 <button
                   type="button"
-                  onClick={() => navigate(`/properties/${parcel.id}`)}
+                  onClick={() => navigate(`/properties/${parcel.id}${parcel.id.startsWith("geo:") ? `?address=${encodeURIComponent(parcel.address)}` : ""}`)}
                   className="text-xs font-medium text-amber-600 hover:text-amber-700 hover:underline"
                 >
                   Open full dashboard →

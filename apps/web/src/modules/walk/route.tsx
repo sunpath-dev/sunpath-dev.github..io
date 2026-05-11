@@ -335,7 +335,7 @@ export function WalkRoute() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => navigate(`/properties/${selected.id}`)}
+                    onClick={() => navigate(`/properties/${selected.id}${selected.id.startsWith("geo:") ? `?address=${encodeURIComponent(selected.address)}` : ""}`)}
                     className="mt-2 text-xs font-semibold text-amber-600 hover:text-amber-700 hover:underline"
                   >
                     Open full dashboard →

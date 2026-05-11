@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/lib/supabase.js";
 import { SubNav } from "@/components/SubNav.js";
 import { ParcelDetailSheet, type ParcelDetail } from "./ParcelDetailSheet.js";
@@ -28,12 +28,26 @@ type ParcelState =
 
 export function PropertyDetailRoute() {
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [state, setState] = useState<ParcelState>({ status: "loading" });
 
   useEffect(() => {
     if (!id) return;
     let cancelled = false;
+
+    // Geocoded addresses that don't match a seeded parcel get a "geo:lat,lon" ID.
+    // Build a synthetic parcel from the coords so the dashboard still loads.
+    if (id.startsWith("geo:")) {
+      const parts = id.slice(4).split(",");
+      const lat = parseFloat(parts[0] ?? "0");
+      const lon = parseFloat(parts[1] ?? "0");
+      const address = searchParams.get("address") ?? searchParams.get("q") ?? `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+      const parcel: ParcelDetail = { id, address, state: "", lat, lon, score: -1, existing: false };
+      setState({ status: "ok", parcel });
+      saveRecent(id, address);
+      return;
+    }
 
     supabase
       .from("parcel")
