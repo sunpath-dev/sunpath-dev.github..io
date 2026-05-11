@@ -1,6 +1,3 @@
-// Real Supabase OAuth auth hook.
-// Exposes session + rep row (id, role, status) to the app.
-// Replaces the old POC fake-session module.
 import { useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./supabase.js";
@@ -17,7 +14,10 @@ export interface AuthState {
   session: Session | null;
   rep: RepInfo | null;
   loading: boolean;
-  signInWithProvider: (provider: "google" | "azure") => Promise<void>;
+  signInWithEmail: (email: string, password: string) => Promise<{ error: string | null }>;
+  signUp: (email: string, password: string, displayName?: string) => Promise<{ error: string | null }>;
+  resetPassword: (email: string) => Promise<{ error: string | null }>;
+  signInWithProvider: (provider: "google" | "azure" | "linkedin_oidc") => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -35,14 +35,33 @@ async function fetchRep(authUserId: string): Promise<RepInfo | null> {
   };
 }
 
-let cached: AuthState | null = null;
-const subscribers = new Set<() => void>();
+const POC_KEY = "sunpath:poc-bypass";
+const POC_REP: RepInfo = { id: "poc-guest", role: "admin", status: "active" };
 
-function emit() {
-  for (const s of subscribers) s();
+async function signInWithEmail(email: string, password: string): Promise<{ error: string | null }> {
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  return { error: error?.message ?? null };
 }
 
-async function signInWithProvider(provider: "google" | "azure"): Promise<void> {
+async function signUp(email: string, password: string, displayName?: string): Promise<{ error: string | null }> {
+  const { error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: { display_name: displayName ?? "", full_name: displayName ?? "" },
+    },
+  });
+  return { error: error?.message ?? null };
+}
+
+async function resetPassword(email: string): Promise<{ error: string | null }> {
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin + "/",
+  });
+  return { error: error?.message ?? null };
+}
+
+async function signInWithProvider(provider: "google" | "azure" | "linkedin_oidc"): Promise<void> {
   await supabase.auth.signInWithOAuth({
     provider,
     options: { redirectTo: window.location.origin + "/" },
@@ -59,16 +78,21 @@ export function enterAsPoc(): void {
   window.location.reload();
 }
 
-// Bootstrap: resolve initial session synchronously if available.
+let cached: AuthState | null = null;
+const subscribers = new Set<() => void>();
+
+function emit() {
+  for (const s of subscribers) s();
+}
+
 let resolveInitial: (() => void) | undefined;
 const initialReady = new Promise<void>((resolve) => {
   resolveInitial = resolve;
 });
 
-// POC bypass: localStorage flag set by the "Enter as guest" button.
-// Lets the app be used before OAuth providers are configured in Supabase.
-const POC_KEY = "sunpath:poc-bypass";
-const POC_REP: RepInfo = { id: "poc-guest", role: "admin", status: "active" };
+function makeState(session: Session | null, rep: RepInfo | null): AuthState {
+  return { session, rep, loading: false, signInWithEmail, signUp, resetPassword, signInWithProvider, signOut };
+}
 
 (async () => {
   const { data } = await supabase.auth.getSession();
@@ -79,12 +103,11 @@ const POC_REP: RepInfo = { id: "poc-guest", role: "admin", status: "active" };
   } else if (localStorage.getItem(POC_KEY) === "1") {
     rep = POC_REP;
   }
-  cached = { session, rep, loading: false, signInWithProvider, signOut };
+  cached = makeState(session, rep);
   resolveInitial?.();
   emit();
 })();
 
-// Subscribe to auth state changes.
 supabase.auth.onAuthStateChange((_event, session) => {
   void (async () => {
     let rep: RepInfo | null = null;
@@ -93,13 +116,7 @@ supabase.auth.onAuthStateChange((_event, session) => {
     } else if (localStorage.getItem(POC_KEY) === "1") {
       rep = POC_REP;
     }
-    cached = {
-      session: session ?? null,
-      rep,
-      loading: false,
-      signInWithProvider,
-      signOut,
-    };
+    cached = makeState(session ?? null, rep);
     emit();
   })();
 });
@@ -110,7 +127,6 @@ export function useAuth(): AuthState {
   useEffect(() => {
     const cb = () => setTick((n) => n + 1);
     subscribers.add(cb);
-    // Force a re-render once the initial session is resolved.
     void initialReady.then(() => cb());
     return () => {
       subscribers.delete(cb);
@@ -122,6 +138,9 @@ export function useAuth(): AuthState {
       session: null,
       rep: null,
       loading: true,
+      signInWithEmail,
+      signUp,
+      resetPassword,
       signInWithProvider,
       signOut,
     }
