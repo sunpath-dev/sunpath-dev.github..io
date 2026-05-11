@@ -90,6 +90,8 @@ supabase.auth.onAuthStateChange((_event, session) => {
     let rep: RepInfo | null = null;
     if (session) {
       rep = await fetchRep(session.user.id);
+    } else if (localStorage.getItem(POC_KEY) === "1") {
+      rep = POC_REP;
     }
     cached = {
       session: session ?? null,

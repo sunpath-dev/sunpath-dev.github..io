@@ -299,13 +299,14 @@ export function HomeRoute() {
   // Callbacks
   useEffect(() => {
     if (!rep?.id) return;
+    const repId = rep.id;
     let cancelled = false;
     void (async () => {
       const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
       const { data } = await supabase
         .from("door_event")
         .select("parcel_id, occurred_at, parcel:parcel_id(address_line1)")
-        .eq("rep_id", rep!.id)
+        .eq("rep_id", repId)
         .eq("outcome", "callback")
         .gte("occurred_at", since)
         .order("occurred_at", { ascending: false })
