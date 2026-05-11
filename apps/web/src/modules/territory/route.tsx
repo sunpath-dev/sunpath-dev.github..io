@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import maplibregl, { Map as MlMap } from "maplibre-gl";
-import "maplibre-gl/dist/maplibre-gl.css";
 import { fetchParcelsInBbox, pinsToGeoJSON } from "./repo.js";
 import type { ParcelPin } from "./pins.js";
 import {
@@ -142,6 +141,7 @@ export function TerritoryRoute() {
     );
 
     map.on("load", () => {
+      map.resize();
       map.addSource(PARCEL_SOURCE, {
         type: "geojson",
         data: { type: "FeatureCollection", features: [] },

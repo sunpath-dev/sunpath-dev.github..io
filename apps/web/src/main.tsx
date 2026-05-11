@@ -6,6 +6,7 @@ import { HashRouter } from 'react-router-dom'
 import App from './App'
 import { initObservability } from './lib/observability'
 import './index.css'
+import 'maplibre-gl/dist/maplibre-gl.css'
 
 const rootEl = document.getElementById('root')
 if (!rootEl) throw new Error('#root not found')
