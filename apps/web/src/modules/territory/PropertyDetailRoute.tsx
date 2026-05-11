@@ -31,6 +31,7 @@ export function PropertyDetailRoute() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [state, setState] = useState<ParcelState>({ status: "loading" });
+  const addressParam = searchParams.get("address") ?? searchParams.get("q") ?? null;
 
   useEffect(() => {
     if (!id) return;
@@ -42,7 +43,7 @@ export function PropertyDetailRoute() {
       const parts = id.slice(4).split(",");
       const lat = parseFloat(parts[0] ?? "0");
       const lon = parseFloat(parts[1] ?? "0");
-      const address = searchParams.get("address") ?? searchParams.get("q") ?? `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+      const address = addressParam ?? `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
       const parcel: ParcelDetail = { id, address, state: "", lat, lon, score: -1, existing: false };
       setState({ status: "ok", parcel });
       saveRecent(id, address);
@@ -99,7 +100,7 @@ export function PropertyDetailRoute() {
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, addressParam]);
 
   return (
     <div className="flex flex-1 min-h-0 flex-col">

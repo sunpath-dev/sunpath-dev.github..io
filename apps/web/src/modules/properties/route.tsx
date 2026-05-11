@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, startTransition } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { getRoute, type RouteEntry } from "@/lib/route.js";
 import { DashboardCard } from "@/components/DashboardCard.js";
@@ -55,17 +55,19 @@ export function PropertiesRoute() {
   const [route, setRoute] = useState<RouteEntry[]>(() => getRoute());
   const [recent, setRecent] = useState<RecentProperty[]>(loadRecent);
 
-  // Refresh on every navigation (e.g. returning from a property detail page).
+  // Refresh on every navigation and on window focus.
   useEffect(() => {
-    setRoute(getRoute());
-    setRecent(loadRecent());
+    startTransition(() => {
+      setRoute(getRoute());
+      setRecent(loadRecent());
+    });
   }, [location.pathname]);
 
   useEffect(() => {
-    const refresh = () => {
+    const refresh = () => startTransition(() => {
       setRoute(getRoute());
       setRecent(loadRecent());
-    };
+    });
     window.addEventListener("focus", refresh);
     return () => window.removeEventListener("focus", refresh);
   }, []);
