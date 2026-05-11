@@ -129,6 +129,9 @@ export function TerritoryRoute() {
       zoom: DEFAULT_ZOOM,
       attributionControl: { compact: true },
     });
+    // Flex containers may not have final pixel dimensions when useEffect fires.
+    // requestAnimationFrame waits for the next paint so MapLibre gets real dimensions.
+    requestAnimationFrame(() => { map.resize(); });
     map.addControl(new maplibregl.NavigationControl({ visualizePitch: false }), "bottom-right");
     map.addControl(
       new maplibregl.GeolocateControl({
@@ -289,8 +292,14 @@ export function TerritoryRoute() {
     });
 
     mapRef.current = map;
+
+    // Keep canvas in sync if the container is resized (orientation change, etc.)
+    const ro = new ResizeObserver(() => { map.resize(); });
+    if (containerRef.current) ro.observe(containerRef.current);
+
     return () => {
       cancelled = true;
+      ro.disconnect();
       map.remove();
       mapRef.current = null;
     };
@@ -526,9 +535,9 @@ export function TerritoryRoute() {
         </button>
       </div>
 
-      <div className="relative flex-1 overflow-hidden">
+      <div className="relative flex-1 overflow-hidden bg-slate-100">
       {/* Full-screen map */}
-      <div ref={containerRef} className="absolute inset-0" />
+      <div ref={containerRef} className="absolute inset-0 bg-slate-100" />
 
       {/* Floating top panel — search bar + legend/action row + optional panels */}
       <div className="absolute left-2 right-2 top-2 z-10 flex flex-col gap-1.5">
