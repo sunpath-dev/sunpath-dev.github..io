@@ -135,7 +135,7 @@ export function TodayRoute() {
       setDoorsToday(t.count ?? 0);
       setDoorsWeek(w.count ?? 0);
     });
-  }, [rep?.id]);
+  }, [rep]);
 
   // Callbacks from door_events (outcome='callback' last 30d)
   useEffect(() => {
@@ -173,7 +173,7 @@ export function TodayRoute() {
       setCalDays(buildCalWeek(data.map((r) => (r as { occurred_at: string }).occurred_at)));
     })();
     return () => { cancelled = true; };
-  }, [rep?.id]);
+  }, [rep]);
 
   // Area Intelligence — Census + EIA for Scott County VA
   useEffect(() => {

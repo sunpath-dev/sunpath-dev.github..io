@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase.js";
 import { useAuth } from "@/lib/auth.js";
 
@@ -73,7 +73,7 @@ export function AdminPanel() {
   const [actionBusy, setActionBusy] = useState<string | null>(null);
   const [nowMs] = useState(() => Date.now());
 
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     const [repsRes, reqRes, invRes] = await Promise.all([
       supabase.from("rep").select("id,display_name,role,status,created_at").order("created_at", { ascending: true }),
       supabase.from("rep_access_request").select("id,email,display_name,note,status,created_at").eq("status", "pending").order("created_at", { ascending: true }),
@@ -82,12 +82,12 @@ export function AdminPanel() {
     setAllReps((repsRes.data as RepRow[] | null) ?? []);
     setRequests((reqRes.data as AccessRequest[] | null) ?? []);
     setInvites((invRes.data as InviteRow[] | null) ?? []);
-  };
+  }, []);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
     if (rep?.role === "admin") void refresh();
-  }, [rep?.role]);
+  }, [rep, refresh]);
 
   const setRepStatus = async (repId: string, status: string) => {
     setActionBusy(repId);

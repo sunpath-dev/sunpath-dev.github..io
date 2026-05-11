@@ -127,7 +127,7 @@ function EditRepModal({ rep, onClose, onSave }: EditRepModalProps) {
       setResetMsg(null);
       setSaveMsg(null);
     }
-  }, [rep?.id]);
+  }, [rep]);
 
   if (!rep) return null;
 
@@ -1125,7 +1125,7 @@ export function AdminRoute() {
       const session = (await supabase.auth.getSession()).data.session;
       setHasRealSession(!!session?.access_token);
     })();
-  }, [rep?.id]);
+  }, [rep]);
 
   const refresh = useCallback(async () => {
     const [repsRes, reqRes, invRes] = await Promise.all([
@@ -1142,7 +1142,7 @@ export function AdminRoute() {
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
     if (rep?.role === "admin") void refresh();
-  }, [rep?.role, refresh]);
+  }, [rep, refresh]);
 
   const setRepStatus = async (id: string, status: string) => {
     setBusy(id);

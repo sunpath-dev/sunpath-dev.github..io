@@ -183,7 +183,7 @@ export function HomeRoute() {
     return () => {
       if (tickRef.current) clearInterval(tickRef.current);
     };
-  }, [weather?.sunset]);
+  }, [weather]);
 
   // fetchAreaStats — defined before the geo-reverse effect that calls it
   const fetchAreaStats = useCallback(
@@ -294,7 +294,7 @@ export function HomeRoute() {
       setDoorsToday(t.count ?? 0);
       setDoorsWeek(w.count ?? 0);
     });
-  }, [rep?.id]);
+  }, [rep]);
 
   // Callbacks
   useEffect(() => {
@@ -328,7 +328,7 @@ export function HomeRoute() {
       setCalDays(buildCalWeek(data.map((r) => (r as { occurred_at: string }).occurred_at)));
     })();
     return () => { cancelled = true; };
-  }, [rep?.id]);
+  }, [rep]);
 
   const today = new Date().toLocaleDateString("en-US", {
     weekday: "long",

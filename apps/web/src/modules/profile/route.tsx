@@ -41,11 +41,11 @@ export function ProfileRoute() {
     if (!rep?.id || isPoc) return;
     void supabase.from("rep").select("display_name").eq("id", rep.id).maybeSingle()
       .then(({ data }) => { setDisplayName((data as { display_name?: string | null } | null)?.display_name ?? null); });
-  }, [rep?.id, isPoc]);
+  }, [rep, isPoc]);
 
   useEffect(() => {
     void gravatarUrl(session?.user?.email).then(setAvatarUrl);
-  }, [session?.user?.email]);
+  }, [session]);
 
   const startEdit = () => { setNameInput(displayName ?? ""); setEditingName(true); };
 
