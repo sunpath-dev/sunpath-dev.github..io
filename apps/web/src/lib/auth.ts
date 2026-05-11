@@ -59,12 +59,18 @@ const initialReady = new Promise<void>((resolve) => {
   resolveInitial = resolve;
 });
 
+// DEV-only mock rep — active admin so all features are accessible without OAuth.
+// import.meta.env.DEV is false in production builds; this code never ships live.
+const DEV_REP: RepInfo = { id: "dev-local", role: "admin", status: "active" };
+
 (async () => {
   const { data } = await supabase.auth.getSession();
   const session = data.session ?? null;
   let rep: RepInfo | null = null;
   if (session) {
     rep = await fetchRep(session.user.id);
+  } else if (import.meta.env.DEV) {
+    rep = DEV_REP;
   }
   cached = { session, rep, loading: false, signInWithProvider, signOut };
   resolveInitial?.();

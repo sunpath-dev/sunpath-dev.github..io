@@ -112,8 +112,8 @@ export default function App() {
     );
   }
 
-  // Not signed in.
-  if (!session) {
+  // Not signed in. DEV mode skips this gate so local testing works without OAuth.
+  if (!session && !(import.meta.env.DEV && rep)) {
     return <SignInScreen />;
   }
 
