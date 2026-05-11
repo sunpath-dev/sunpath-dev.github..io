@@ -2,9 +2,27 @@ import { useState, useEffect } from "react";
 import { useAuth, enterAsPoc } from "@/lib/auth.js";
 import { supabase } from "@/lib/supabase.js";
 
+async function gravatarUrl(email: string | undefined): Promise<string> {
+  if (!email) return "";
+  const normalized = email.trim().toLowerCase();
+  const msgBuffer = new TextEncoder().encode(normalized);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", msgBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hex = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+  return `https://www.gravatar.com/avatar/${hex}?s=80&d=identicon`;
+}
+
+function greeting(name: string | null): string {
+  const h = new Date().getHours();
+  const period = h < 12 ? "morning" : h < 17 ? "afternoon" : "evening";
+  const first = name ? name.split(" ")[0] : null;
+  return first ? `Good ${period}, ${first}` : `Good ${period}`;
+}
+
 export function ProfileRoute() {
   const { session, rep, signOut } = useAuth();
   const [displayName, setDisplayName] = useState<string | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string>("");
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState("");
   const [savingName, setSavingName] = useState(false);
@@ -24,6 +42,10 @@ export function ProfileRoute() {
     void supabase.from("rep").select("display_name").eq("id", rep.id).maybeSingle()
       .then(({ data }) => { setDisplayName((data as { display_name?: string | null } | null)?.display_name ?? null); });
   }, [rep?.id, isPoc]);
+
+  useEffect(() => {
+    void gravatarUrl(session?.user?.email).then(setAvatarUrl);
+  }, [session?.user?.email]);
 
   const startEdit = () => { setNameInput(displayName ?? ""); setEditingName(true); };
 
@@ -58,8 +80,25 @@ export function ProfileRoute() {
   return (
     <div className="flex flex-1 min-h-0 flex-col overflow-y-auto bg-slate-50">
       <header className="border-b bg-white px-4 py-4">
-        <h1 className="text-2xl font-bold text-slate-900">My Profile</h1>
-        <p className="text-sm text-slate-500 mt-0.5">{session?.user?.email ?? (isPoc ? "POC session" : "")}</p>
+        <div className="flex items-center gap-4">
+          {avatarUrl ? (
+            <img
+              src={avatarUrl}
+              alt="Profile"
+              className="h-14 w-14 rounded-full border-2 border-amber-200 object-cover shrink-0"
+              onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+            />
+          ) : (
+            <div className="h-14 w-14 rounded-full bg-amber-100 shrink-0 flex items-center justify-center text-2xl text-amber-600 font-bold">
+              {(displayName ?? session?.user?.email ?? "?")[0]?.toUpperCase()}
+            </div>
+          )}
+          <div>
+            <p className="text-lg font-bold text-amber-600">{greeting(displayName)}</p>
+            <h1 className="text-xl font-bold text-slate-900">{isPoc ? "POC Guest" : (displayName || "My Profile")}</h1>
+            <p className="text-sm text-slate-500">{session?.user?.email ?? (isPoc ? "POC session" : "")}</p>
+          </div>
+        </div>
       </header>
 
       <div className="flex-1 space-y-4 p-4">

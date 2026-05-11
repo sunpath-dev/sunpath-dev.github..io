@@ -62,12 +62,11 @@ export function PropertyDetailRoute() {
       return;
     }
 
+    // Use parcel_by_id RPC — the parcel table stores coordinates as a PostGIS
+    // centroid column (no latitude/longitude columns); the RPC extracts them
+    // and aliases roof_area_sqft → sqft, last_sale_amount_usd → last_sale_price_usd.
     supabase
-      .from("parcel")
-      .select(
-        "id, address_line1, state, latitude, longitude, score, has_existing_solar, year_built, sqft, assessed_value_usd, last_sale_date, last_sale_price_usd, primary_orientation",
-      )
-      .eq("id", id)
+      .rpc("parcel_by_id", { p_id: id })
       .single()
       .then(({ data, error: err }) => {
         if (cancelled) return;
@@ -79,9 +78,9 @@ export function PropertyDetailRoute() {
           id: string;
           address_line1: string;
           state: string;
-          latitude: number;
-          longitude: number;
-          score: number;
+          lat: number;
+          lon: number;
+          score: number | null;
           has_existing_solar: boolean;
           year_built?: number;
           sqft?: number;
@@ -94,8 +93,8 @@ export function PropertyDetailRoute() {
           id: row.id,
           address: row.address_line1,
           state: row.state,
-          lat: row.latitude,
-          lon: row.longitude,
+          lat: row.lat,
+          lon: row.lon,
           score: row.score ?? -1,
           existing: row.has_existing_solar ?? false,
           year_built: row.year_built,

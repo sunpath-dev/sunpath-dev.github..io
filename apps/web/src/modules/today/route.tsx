@@ -408,16 +408,9 @@ export function TodayRoute() {
                 </div>
               ))}
             </div>
-            <p className="text-xs text-slate-400 mb-2">
-              Blue dot = callback scheduled. Calendar sync will show appointments here.
+            <p className="text-xs text-slate-400">
+              Blue dot = callback scheduled. Google Calendar, Outlook, and Apple Calendar sync coming soon.
             </p>
-            <button
-              type="button"
-              disabled
-              className="w-full rounded border border-slate-200 py-1.5 text-xs font-medium text-slate-400 cursor-not-allowed"
-            >
-              Connect Google Calendar (coming soon)
-            </button>
           </div>
         </div>
 

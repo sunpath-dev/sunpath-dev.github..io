@@ -19,6 +19,21 @@ All notable changes to Sunpath. Dates are approximate session dates.
 
 ---
 
+## [0.8.0] — 2026-05-11 · Property detail fix, profile, map UX
+
+### Added
+- Profile page: Gravatar / identicon avatar (SHA-256 of email, Gravatar CDN with identicon fallback); personalised greeting — "Good morning/afternoon/evening, [first name]"
+- Map filter panel: score explanation (8 factors, point values, color scale) + inline notes on "Hide existing solar" and "Owner-occupied only" data sources
+- Heatmap button: tooltip explaining what the overlay shows and that it's most useful zoomed out to county scale
+- Migration 0031: `parcel_by_id` RPC (extracts `lat`/`lon` from PostGIS centroid, aliases `roof_area_sqft → sqft`, `last_sale_amount_usd → last_sale_price_usd`); also locks in the handle_new_auth_user trigger fix
+
+### Fixed
+- **Property detail "not found"** — `PropertyDetailRoute` was querying `latitude, longitude, sqft, last_sale_price_usd` columns that do not exist on the `parcel` table (which stores coordinates as `centroid geography`). Every direct parcel lookup was silently failing. Switched to `parcel_by_id` RPC.
+- **Recently viewed showing coordinates** — downstream of the "not found" bug; `saveRecent` was never called from `PropertyDetailRoute` because the query always errored. Now calls correctly.
+- Calendar section on Today dashboard: replaced three disabled "Connect" buttons with a single "Google Calendar, Outlook, and Apple Calendar sync coming soon" note
+
+---
+
 ## [0.7.0] — 2026-05-11 · Admin portal v2 + territory ingest automation
 
 ### Added

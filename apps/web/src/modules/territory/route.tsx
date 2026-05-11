@@ -545,6 +545,7 @@ export function TerritoryRoute() {
         <button
           type="button"
           onClick={() => setShowHeatmap((v) => !v)}
+          title="Heat map: replaces individual dots with a colour-density overlay — hot colours show where high-scoring properties cluster. Best at county scale (zoom out)."
           className={[
             "flex shrink-0 items-center gap-1 rounded-md px-3 py-1 text-xs font-medium",
             showHeatmap ? "bg-amber-500 text-white" : "text-slate-600 hover:bg-slate-200",
@@ -613,6 +614,9 @@ export function TerritoryRoute() {
         {/* Filter panel — expands inline below the action row */}
         {filterOpen && (
           <div className="rounded-xl border bg-white p-3 shadow-lg space-y-2 text-xs">
+            <div className="text-[11px] text-slate-500 leading-relaxed border-b border-slate-100 pb-2 mb-1">
+              <span className="font-semibold text-slate-700">Knock score 0–100</span> — ranks each property by solar opportunity. Factors: owner-occupancy (25 pts), roof orientation (15 pts S-facing), neighbor permits (up to 15 pts), assessed value bracket (10 pts), annual solar production via PVWatts (up to 20 pts when available), recent rate hike (5 pts), recently sold (5 pts), year built (5 pts). Color: <span className="text-amber-300">●</span> cold → <span className="text-orange-500">●</span> warm → <span className="text-red-700">●</span> hot.
+            </div>
             <div className="flex items-center gap-2">
               <span className="w-20 shrink-0 text-slate-600">Score ≥</span>
               <input
@@ -637,7 +641,10 @@ export function TerritoryRoute() {
                 onChange={(e) => setHideExisting(e.target.checked)}
                 className="accent-amber-500"
               />
-              <span className="text-slate-700">Hide existing solar</span>
+              <div>
+                <span className="text-slate-700">Hide existing solar</span>
+                <span className="ml-1 text-slate-400">(grey pins — already installed)</span>
+              </div>
             </label>
             <label className="flex cursor-pointer select-none items-center gap-2">
               <input
@@ -645,7 +652,10 @@ export function TerritoryRoute() {
                 onChange={(e) => setOwnerOccOnly(e.target.checked)}
                 className="accent-amber-500"
               />
-              <span className="text-slate-700">Owner-occupied only</span>
+              <div>
+                <span className="text-slate-700">Owner-occupied only</span>
+                <span className="ml-1 text-slate-400">(from assessor data)</span>
+              </div>
             </label>
             {filtersActive && (
               <button
