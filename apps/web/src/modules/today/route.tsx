@@ -73,7 +73,7 @@ function buildCalWeek(callbackDates: string[]): CalDay[] {
 }
 
 export function TodayRoute() {
-  const { session, rep } = useAuth();
+  const { rep } = useAuth();
   const navigate = useNavigate();
 
   const [geo, setGeo] = useState<{ lat: number; lon: number } | null>(null);
@@ -135,18 +135,18 @@ export function TodayRoute() {
       setDoorsToday(t.count ?? 0);
       setDoorsWeek(w.count ?? 0);
     });
-  }, [session]);
+  }, [rep?.id]);
 
   // Callbacks from door_events (outcome='callback' last 30d)
   useEffect(() => {
-    if (!session?.user.id) return;
+    if (!rep?.id) return;
     let cancelled = false;
     void (async () => {
       const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
       const { data } = await supabase
         .from("door_event")
         .select("parcel_id, occurred_at, parcel:parcel_id(address_line1)")
-        .eq("rep_id", session!.user.id)
+        .eq("rep_id", rep!.id)
         .eq("outcome", "callback")
         .gte("occurred_at", since)
         .order("occurred_at", { ascending: false })
@@ -172,7 +172,7 @@ export function TodayRoute() {
       setCalDays(buildCalWeek(data.map((r) => (r as { occurred_at: string }).occurred_at)));
     })();
     return () => { cancelled = true; };
-  }, [session]);
+  }, [rep?.id]);
 
   // Area Intelligence — Census + EIA for Scott County VA
   useEffect(() => {

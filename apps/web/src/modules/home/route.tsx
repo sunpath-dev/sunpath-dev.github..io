@@ -117,7 +117,7 @@ function geoCacheKey(lat: number, lon: number): string {
 }
 
 export function HomeRoute() {
-  const { session, rep } = useAuth();
+  const { rep } = useAuth();
   const navigate = useNavigate();
   const { order, collapsed, reorder, toggleCollapsed, resetLayout } =
     useDashboardLayout(STORAGE_KEY, DEFAULT_ORDER);
@@ -294,18 +294,18 @@ export function HomeRoute() {
       setDoorsToday(t.count ?? 0);
       setDoorsWeek(w.count ?? 0);
     });
-  }, [session]);
+  }, [rep?.id]);
 
   // Callbacks
   useEffect(() => {
-    if (!session?.user.id) return;
+    if (!rep?.id) return;
     let cancelled = false;
     void (async () => {
       const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
       const { data } = await supabase
         .from("door_event")
         .select("parcel_id, occurred_at, parcel:parcel_id(address_line1)")
-        .eq("rep_id", session!.user.id)
+        .eq("rep_id", rep!.id)
         .eq("outcome", "callback")
         .gte("occurred_at", since)
         .order("occurred_at", { ascending: false })
@@ -327,7 +327,7 @@ export function HomeRoute() {
       setCalDays(buildCalWeek(data.map((r) => (r as { occurred_at: string }).occurred_at)));
     })();
     return () => { cancelled = true; };
-  }, [session]);
+  }, [rep?.id]);
 
   const today = new Date().toLocaleDateString("en-US", {
     weekday: "long",
