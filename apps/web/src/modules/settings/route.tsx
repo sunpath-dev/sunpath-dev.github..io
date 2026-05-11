@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useAuth } from "@/lib/auth.js";
 import { Button } from "@sunpath/ui";
 import { PushOptIn } from "./PushOptIn.js";
-import { InviteAdminPanel } from "@/components/InviteAdminPanel.js";
+import { AdminPanel } from "@/components/AdminPanel.js";
 
 const REPO = "https://github.com/sunpath-dev/sunpath-dev.github.io";
 const SUPPORT_EMAIL = "support@sunpath.dev";
@@ -226,7 +226,7 @@ export function SettingsRoute() {
         <div>
           <PushOptIn />
         </div>
-        <InviteAdminPanel />
+        <AdminPanel />
 
         <div className="pt-2">
           <Button variant="ghost" onClick={() => void signOut()}>

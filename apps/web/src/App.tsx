@@ -3,6 +3,9 @@ import { lazy, Suspense, useEffect } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AppShell } from "@/components/AppShell.js";
 import { SignInScreen } from "@/components/SignInScreen.js";
+import { PendingApprovalScreen } from "@/components/PendingApprovalScreen.js";
+import { SuspendedScreen } from "@/components/SuspendedScreen.js";
+import { RequestAccessForm } from "@/components/RequestAccessForm.js";
 import { useAuth } from "@/lib/auth.js";
 import { startSyncEngine } from "@/lib/sync.js";
 
@@ -58,20 +61,24 @@ function RouteFallback() {
 }
 
 export default function App() {
-  const { session } = useAuth();
-  const isCallback =
-    typeof window !== "undefined" &&
-    window.location.hash.startsWith("#/d/");
-  const isAcceptInvite =
-    typeof window !== "undefined" &&
-    window.location.hash.startsWith("#/accept-invite");
+  const { session, rep, loading } = useAuth();
 
   useEffect(() => {
     if (!session) return;
     return startSyncEngine();
   }, [session]);
 
-  // Public callback page works with or without a session — homeowners arrive here.
+  const isCallback =
+    typeof window !== "undefined" &&
+    window.location.hash.startsWith("#/d/");
+  const isAcceptInvite =
+    typeof window !== "undefined" &&
+    window.location.hash.startsWith("#/accept-invite");
+  const isRequestAccess =
+    typeof window !== "undefined" &&
+    window.location.hash.startsWith("#/request-access");
+
+  // Public pages accessible without auth.
   if (isCallback) {
     return (
       <Suspense fallback={<RouteFallback />}>
@@ -82,7 +89,6 @@ export default function App() {
       </Suspense>
     );
   }
-  // Accept-invite handles its own auth gating.
   if (isAcceptInvite) {
     return (
       <Suspense fallback={<RouteFallback />}>
@@ -93,15 +99,43 @@ export default function App() {
       </Suspense>
     );
   }
+  if (isRequestAccess) {
+    return <RequestAccessForm />;
+  }
+
+  // Loading initial session.
+  if (loading) {
+    return (
+      <div className="flex min-h-dvh items-center justify-center bg-slate-50">
+        <div className="text-sm text-slate-500">Loading…</div>
+      </div>
+    );
+  }
+
+  // Not signed in.
   if (!session) {
     return <SignInScreen />;
   }
 
+  // Signed in but rep row not yet created (trigger runs async — poll briefly).
+  if (!rep) {
+    return (
+      <div className="flex min-h-dvh items-center justify-center bg-slate-50">
+        <div className="text-sm text-slate-500">Setting up your account…</div>
+      </div>
+    );
+  }
+
+  // Status gates.
+  if (rep.status === "pending") return <PendingApprovalScreen />;
+  if (rep.status === "suspended") return <SuspendedScreen />;
+
+  // Active rep — full app.
   return (
     <Suspense fallback={<RouteFallback />}>
       <Routes>
         <Route element={<AppShell />}>
-          {/* Redirects — old routes and root */}
+          {/* Redirects */}
           <Route path="/" element={<Navigate to="/home" replace />} />
           <Route path="/today" element={<Navigate to="/home" replace />} />
           <Route path="/walk" element={<Navigate to="/properties/walk" replace />} />
@@ -119,7 +153,7 @@ export default function App() {
           <Route path="/about" element={<SettingsRoute />} />
           <Route path="/pipeline" element={<PipelineRoute />} />
 
-          {/* Sub-routes (no primary nav highlight needed) */}
+          {/* Sub-routes */}
           <Route path="/bill" element={<BillCaptureRoute />} />
 
           <Route path="*" element={<Navigate to="/home" replace />} />

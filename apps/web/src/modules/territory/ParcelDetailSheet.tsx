@@ -178,7 +178,7 @@ interface NoteRow {
 }
 
 export function ParcelDetailSheet({ parcel, onClose, asPage = false }: Props) {
-  const { session } = useAuth();
+  const { session, rep } = useAuth();
   const navigate = useNavigate();
 
   const [incentives, setIncentives] = useState<IncentivesResponse | null>(null);
@@ -420,7 +420,7 @@ export function ParcelDetailSheet({ parcel, onClose, asPage = false }: Props) {
   const finModelIsActual = billCapture?.total_kwh != null;
 
   const handleSaveNote = async (body: string) => {
-    if (!session) return;
+    if (!rep) return;
     const now = new Date().toISOString();
     if (editingNote) {
       // Update existing note locally + server.
@@ -432,7 +432,7 @@ export function ParcelDetailSheet({ parcel, onClose, asPage = false }: Props) {
       const id = crypto.randomUUID();
       await db.parcelNotes.put({
         id,
-        rep_id: session.user.id,
+        rep_id: rep!.id,
         parcel_id: parcel.id,
         body,
         created_at: now,
@@ -455,12 +455,12 @@ export function ParcelDetailSheet({ parcel, onClose, asPage = false }: Props) {
   };
 
   const handleKnock = async (outcome: DoorOutcome) => {
-    if (!session) return;
+    if (!rep) return;
     setKnockError(null);
     try {
       await recordDoorEvent({
         parcel_id: parcel.id,
-        rep_id: session.user.id,
+        rep_id: rep.id,
         outcome,
         geo: { lat: parcel.lat, lon: parcel.lon },
       });

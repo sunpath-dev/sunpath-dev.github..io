@@ -117,7 +117,7 @@ function geoCacheKey(lat: number, lon: number): string {
 }
 
 export function HomeRoute() {
-  const { session } = useAuth();
+  const { session, rep } = useAuth();
   const navigate = useNavigate();
   const { order, collapsed, reorder, toggleCollapsed, resetLayout } =
     useDashboardLayout(STORAGE_KEY, DEFAULT_ORDER);
@@ -279,8 +279,8 @@ export function HomeRoute() {
 
   // Door stats
   useEffect(() => {
-    if (!session?.user.id) return;
-    const repId = session.user.id;
+    if (!rep?.id) return;
+    const repId = rep.id;
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
     const weekStart = new Date();

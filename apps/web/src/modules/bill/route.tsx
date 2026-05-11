@@ -50,7 +50,7 @@ function manualToFields(form: ManualForm): BillFields {
 }
 
 export function BillCaptureRoute() {
-  const { session } = useAuth();
+  const { session, rep } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const linkedParcelId = searchParams.get("parcel_id");
@@ -81,7 +81,7 @@ export function BillCaptureRoute() {
   }, [activeTab, ocrText, fileOcrText, manualForm]);
 
   const canSave =
-    !!session?.user.id &&
+    !!rep?.id &&
     (activeFields.total_kwh !== null || activeFields.total_amount_usd !== null);
 
   const runOcr = async (
@@ -132,7 +132,7 @@ export function BillCaptureRoute() {
   };
 
   const onSave = async () => {
-    if (!session?.user.id) return;
+    if (!rep?.id) return;
     setSaveState("saving");
     setSaveError(null);
     const textLen =
@@ -144,7 +144,7 @@ export function BillCaptureRoute() {
     try {
       await db.billCaptures.put({
         id: crypto.randomUUID(),
-        rep_id: session.user.id,
+        rep_id: rep.id,
         parcel_id: linkedParcelId ?? null,
         lead_id: null,
         utility_name: activeFields.utility_name,

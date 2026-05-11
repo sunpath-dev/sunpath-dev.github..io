@@ -157,6 +157,7 @@ Deno.serve(async (req: Request) => {
         body: JSON.stringify({
           role: invite.role,
           invited_by: invite.created_by,
+          status: "active",
         }),
       },
     );
@@ -168,6 +169,7 @@ Deno.serve(async (req: Request) => {
         auth_user_id: authUserId,
         display_name: invite.display_name ?? invite.email.split("@")[0],
         role: invite.role,
+        status: "active",
         invited_by: invite.created_by,
       }),
     });

@@ -79,7 +79,7 @@ Deno.serve(async (req: Request) => {
     );
   }
   const role = body.role ?? "rep";
-  if (!["rep", "lead", "admin"].includes(role)) {
+  if (!["rep", "admin"].includes(role)) {
     return Response.json(
       { error: "invalid role" },
       { status: 400, headers: CORS_HEADERS },
@@ -136,8 +136,8 @@ Deno.serve(async (req: Request) => {
       { status: 403, headers: CORS_HEADERS },
     );
   }
-  // Only `lead` and `admin` can invite for now.
-  if (me.role && !["lead", "admin"].includes(me.role)) {
+  // Only `admin` can invite.
+  if (me.role !== "admin") {
     return Response.json(
       { error: "insufficient role to invite" },
       { status: 403, headers: CORS_HEADERS },

@@ -73,7 +73,7 @@ function buildCalWeek(callbackDates: string[]): CalDay[] {
 }
 
 export function TodayRoute() {
-  const { session } = useAuth();
+  const { session, rep } = useAuth();
   const navigate = useNavigate();
 
   const [geo, setGeo] = useState<{ lat: number; lon: number } | null>(null);
@@ -120,8 +120,8 @@ export function TodayRoute() {
 
   // Door stats (today + week)
   useEffect(() => {
-    if (!session?.user.id) return;
-    const repId = session.user.id;
+    if (!rep?.id) return;
+    const repId = rep.id;
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
     const weekStart = new Date();

@@ -65,7 +65,7 @@ function ScoreDot({ score }: { score: number }) {
 }
 
 export function WalkRoute() {
-  const { session } = useAuth();
+  const { session, rep } = useAuth();
   const navigate = useNavigate();
   const events = useRecentEvents(10);
   const unsynced = useUnsyncedCount();
@@ -101,12 +101,12 @@ export function WalkRoute() {
   const selected = sorted.find((r) => r.id === selectedId) ?? null;
 
   async function tap(outcome: OutcomeValue) {
-    if (!session || !selected) return;
+    if (!rep || !selected) return;
     setRecording(true);
     try {
       await recordDoorEvent({
         parcel_id: selected.id.startsWith("geo:") ? selected.id : selected.id,
-        rep_id: session.user.id,
+        rep_id: rep.id,
         outcome,
         geo: geo ?? undefined,
       });

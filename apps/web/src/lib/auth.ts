@@ -1,45 +1,38 @@
-// Auth hook for the rep app.
-// POC mode: no real auth. Clicking "Enter the app" stores a flag + stable rep
-// ID in localStorage. All session.user.id references get that stable ID.
-// Replace this file when adding real auth.
+// Real Supabase OAuth auth hook.
+// Exposes session + rep row (id, role, status) to the app.
+// Replaces the old POC fake-session module.
 import { useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
+import { supabase } from "./supabase.js";
 
-const POC_KEY = "sunpath_poc_entered";
-const POC_REP_KEY = "sunpath_poc_rep_id";
+export type RepStatus = "pending" | "active" | "suspended";
 
-function getPocRepId(): string {
-  let id = localStorage.getItem(POC_REP_KEY);
-  if (!id) {
-    id = crypto.randomUUID();
-    localStorage.setItem(POC_REP_KEY, id);
-  }
-  return id;
-}
-
-function makePocSession(): Session {
-  return {
-    user: {
-      id: getPocRepId(),
-      email: "poc@sunpath.dev",
-      app_metadata: {},
-      user_metadata: {},
-      aud: "authenticated",
-      created_at: new Date().toISOString(),
-    },
-    access_token: "poc-token",
-    refresh_token: "poc-token",
-    token_type: "bearer",
-    expires_in: 9999999,
-    expires_at: 9999999,
-  } as unknown as Session;
+export interface RepInfo {
+  id: string;
+  role: "rep" | "admin";
+  status: RepStatus;
 }
 
 export interface AuthState {
   session: Session | null;
+  rep: RepInfo | null;
   loading: boolean;
-  enter: () => void;
-  signOut: () => void;
+  signInWithProvider: (provider: "google" | "azure") => Promise<void>;
+  signOut: () => Promise<void>;
+}
+
+async function fetchRep(authUserId: string): Promise<RepInfo | null> {
+  const { data } = await supabase
+    .from("rep")
+    .select("id, role, status")
+    .eq("auth_user_id", authUserId)
+    .maybeSingle();
+  if (!data) return null;
+  return {
+    id: data.id as string,
+    role: (data.role as "rep" | "admin") ?? "rep",
+    status: (data.status as RepStatus) ?? "pending",
+  };
 }
 
 let cached: AuthState | null = null;
@@ -49,38 +42,73 @@ function emit() {
   for (const s of subscribers) s();
 }
 
-function enter() {
-  localStorage.setItem(POC_KEY, "1");
-  cached = { ...buildState() };
+async function signInWithProvider(provider: "google" | "azure"): Promise<void> {
+  await supabase.auth.signInWithOAuth({
+    provider,
+    options: { redirectTo: window.location.origin + "/" },
+  });
+}
+
+async function signOut(): Promise<void> {
+  await supabase.auth.signOut();
+}
+
+// Bootstrap: resolve initial session synchronously if available.
+let resolveInitial: (() => void) | undefined;
+const initialReady = new Promise<void>((resolve) => {
+  resolveInitial = resolve;
+});
+
+(async () => {
+  const { data } = await supabase.auth.getSession();
+  const session = data.session ?? null;
+  let rep: RepInfo | null = null;
+  if (session) {
+    rep = await fetchRep(session.user.id);
+  }
+  cached = { session, rep, loading: false, signInWithProvider, signOut };
+  resolveInitial?.();
   emit();
-}
+})();
 
-function signOut() {
-  localStorage.removeItem(POC_KEY);
-  cached = { ...buildState() };
-  emit();
-}
-
-function buildState(): AuthState {
-  const entered = localStorage.getItem(POC_KEY) === "1";
-  return {
-    session: entered ? makePocSession() : null,
-    loading: false,
-    enter,
-    signOut,
-  };
-}
-
-cached = buildState();
+// Subscribe to auth state changes.
+supabase.auth.onAuthStateChange((_event, session) => {
+  void (async () => {
+    let rep: RepInfo | null = null;
+    if (session) {
+      rep = await fetchRep(session.user.id);
+    }
+    cached = {
+      session: session ?? null,
+      rep,
+      loading: false,
+      signInWithProvider,
+      signOut,
+    };
+    emit();
+  })();
+});
 
 export function useAuth(): AuthState {
   const [, setTick] = useState(0);
+
   useEffect(() => {
     const cb = () => setTick((n) => n + 1);
     subscribers.add(cb);
+    // Force a re-render once the initial session is resolved.
+    void initialReady.then(() => cb());
     return () => {
       subscribers.delete(cb);
     };
   }, []);
-  return cached!;
+
+  return (
+    cached ?? {
+      session: null,
+      rep: null,
+      loading: true,
+      signInWithProvider,
+      signOut,
+    }
+  );
 }
