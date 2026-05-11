@@ -36,7 +36,7 @@ async function fetchRep(authUserId: string): Promise<RepInfo | null> {
 }
 
 const POC_KEY = "sunpath:poc-bypass";
-const POC_REP: RepInfo = { id: "poc-guest", role: "admin", status: "active" };
+const POC_REP: RepInfo = { id: "poc-guest", role: "rep", status: "active" };
 
 async function signInWithEmail(email: string, password: string): Promise<{ error: string | null }> {
   const { error } = await supabase.auth.signInWithPassword({ email, password });
