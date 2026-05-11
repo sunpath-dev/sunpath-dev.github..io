@@ -106,11 +106,6 @@ function ago(iso: string): string {
   return new Date(iso).toLocaleDateString();
 }
 
-function fmt(iso: string | null): string {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleString();
-}
-
 function Badge({ role }: { role: string }) {
   return (
     <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${role === "admin" ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-600"}`}>
