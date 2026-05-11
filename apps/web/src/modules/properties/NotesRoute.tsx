@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 export function NotesRoute() {
   const navigate = useNavigate();
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex flex-1 min-h-0 flex-col">
       {/* Sub-nav */}
       <div className="flex items-center gap-1 overflow-x-auto border-b bg-slate-100 px-3 py-1.5">
         {[

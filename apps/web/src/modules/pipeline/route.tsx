@@ -45,7 +45,7 @@ export function PipelineRoute() {
   };
 
   return (
-    <div className="flex h-full flex-col p-4">
+    <div className="flex flex-1 min-h-0 flex-col p-4">
       <header className="mb-4">
         <h1 className="text-2xl font-bold">Pipeline</h1>
         <p className="text-sm text-slate-600">Leads by stage.</p>

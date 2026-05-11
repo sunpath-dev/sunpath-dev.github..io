@@ -160,7 +160,7 @@ export function WalkRoute() {
   // Empty state
   if (route.length === 0) {
     return (
-      <div className="flex h-full flex-col bg-white">
+      <div className="flex flex-1 min-h-0 flex-col bg-white">
         {subNav}
         <header className="border-b bg-white px-4 py-3">
           <h1 className="text-lg font-bold">Today's Route · {today}</h1>
@@ -198,7 +198,7 @@ export function WalkRoute() {
   }
 
   return (
-    <div className="flex h-full flex-col bg-white">
+    <div className="flex flex-1 min-h-0 flex-col bg-white">
       {subNav}
       <header className="border-b bg-white px-4 py-3">
         <div className="flex items-center justify-between">

@@ -189,10 +189,15 @@ export function HomeRoute() {
   const fetchAreaStats = useCallback(
     (stateFips: string, countyFips: string, state: string, county: string) => {
       void (async () => {
+        const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+        // census-fetch requires exactly 2-char state_fips and 3-char county_fips
+        const canFetchCensus = stateFips.length === 2 && countyFips.length === 3;
         const [censusRes, rateRes, triggerRes] = await Promise.all([
-          supabase.functions.invoke("census-fetch", {
-            body: { state_fips: stateFips, county_fips: countyFips },
-          }),
+          canFetchCensus
+            ? supabase.functions.invoke("census-fetch", {
+                body: { state_fips: stateFips, county_fips: countyFips },
+              })
+            : Promise.resolve({ data: null, error: null }),
           supabase
             .from("utility_rate_observation")
             .select("rate_kwh_usd")
@@ -205,7 +210,8 @@ export function HomeRoute() {
           supabase
             .from("trigger_event")
             .select("id", { count: "exact", head: true })
-            .gte("fired_at", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()),
+            .eq("kind", "neighbor_permit")
+            .gte("fired_at", since30d),
         ]);
         const c = censusRes.data as {
           owner_occupied_pct: number | null;
@@ -235,12 +241,18 @@ export function HomeRoute() {
     if (cached) {
       try {
         const parsed = JSON.parse(cached) as { county: string; state: string; state_fips: string; county_fips: string };
-        const label = `${parsed.county}, ${parsed.state}`;
-        Promise.resolve().then(() => {
-          setAreaLabel(label);
-          fetchAreaStats(parsed.state_fips, parsed.county_fips, parsed.state, parsed.county);
-        });
-        return;
+        // Don't use cached result if county_fips is missing — geo-reverse Census lookup may have
+        // timed out previously. Delete stale entry so the next GPS tick retries it.
+        if (!parsed.county_fips) {
+          localStorage.removeItem(cacheKey);
+        } else {
+          const label = `${parsed.county}, ${parsed.state}`;
+          Promise.resolve().then(() => {
+            setAreaLabel(label);
+            fetchAreaStats(parsed.state_fips, parsed.county_fips, parsed.state, parsed.county);
+          });
+          return;
+        }
       } catch (_e) {
         void _e;
       }
@@ -251,7 +263,10 @@ export function HomeRoute() {
       .then(({ data }) => {
         if (cancelled || !data) return;
         const r = data as { county: string; state: string; state_fips: string; county_fips: string };
-        localStorage.setItem(cacheKey, JSON.stringify(r));
+        // Only cache if we got a complete result (county_fips needed for census-fetch)
+        if (r.county_fips) {
+          localStorage.setItem(cacheKey, JSON.stringify(r));
+        }
         setAreaLabel(`${r.county}, ${r.state}`);
         fetchAreaStats(r.state_fips, r.county_fips, r.state, r.county);
       })
@@ -559,7 +574,7 @@ export function HomeRoute() {
   };
 
   return (
-    <div className="flex h-full flex-col overflow-y-auto bg-slate-50">
+    <div className="flex flex-1 min-h-0 flex-col overflow-y-auto bg-slate-50">
       {/* Weather strip — non-draggable header */}
       <div className="bg-amber-500 px-4 py-3 text-white">
         <div className="flex items-baseline justify-between">

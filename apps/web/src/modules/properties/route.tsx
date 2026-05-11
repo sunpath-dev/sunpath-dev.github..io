@@ -181,7 +181,7 @@ export function PropertiesRoute() {
   };
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex flex-1 min-h-0 flex-col">
       <div className="border-b bg-white px-4 py-3">
         <h1 className="text-lg font-bold text-slate-900">Properties</h1>
       </div>

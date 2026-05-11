@@ -88,7 +88,7 @@ export function PropertyDetailRoute() {
   }, [id]);
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex flex-1 min-h-0 flex-col">
       <SubNav
         items={[
           { icon: "←", label: "Properties", to: "/properties" },

@@ -59,7 +59,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 export function SettingsRoute() {
   const { session, signOut } = useAuth();
   return (
-    <div className="flex h-full flex-col overflow-y-auto bg-slate-50">
+    <div className="flex flex-1 min-h-0 flex-col overflow-y-auto bg-slate-50">
       <header className="border-b bg-white px-4 py-4">
         <div className="flex items-center justify-between">
           <div>

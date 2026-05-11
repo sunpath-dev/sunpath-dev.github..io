@@ -177,7 +177,7 @@ export function BillCaptureRoute() {
   };
 
   return (
-    <div className="flex h-full flex-col lg:flex-row">
+    <div className="flex flex-1 min-h-0 flex-col lg:flex-row">
       <div className="flex flex-1 flex-col">
         <header className="border-b bg-white p-4">
           <div className="flex items-start justify-between gap-2">
