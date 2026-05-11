@@ -9,25 +9,62 @@
  * Usage:
  *   pnpm tsx scripts/ingest-parcels.ts --adapter scott-va [--limit 5000] [--dry-run]
  *
+ * Supported adapters (SW Virginia via VGIN VA_Address_Points statewide layer):
+ *   scott-va, russell-va, washington-va, smyth-va, wythe-va, tazewell-va,
+ *   buchanan-va, dickenson-va, giles-va, grayson-va, lee-va, montgomery-va,
+ *   pulaski-va, roanoke-va, wise-va
+ *
  * Required env:
  *   SUPABASE_URL
  *   SUPABASE_SERVICE_ROLE_KEY
  *
  * Optional env:
- *   VGIN_PARCELS_URL — override the FeatureServer URL for the Scott adapter.
+ *   VGIN_ADDRESSES_URL — override the FeatureServer URL.
  */
 import { createClient } from "@supabase/supabase-js";
 import {
   createScottCountyVaAdapter,
   scottCountyVaAdapter,
+  fetchArcGisFeatures,
+  type ArcGisFeature,
 } from "@sunpath/parcel-adapters";
-import type { ParcelAdapter } from "@sunpath/shared";
+import type { ParcelAdapter, Parcel, ParcelRaw } from "@sunpath/shared";
+
+// ---------------------------------------------------------------------------
+// Types / constants
+// ---------------------------------------------------------------------------
 
 interface Args {
   adapter: string;
   limit: number;
   dryRun: boolean;
 }
+
+const DEFAULT_VGIN_ADDRESSES_URL =
+  "https://vginmaps.vdem.virginia.gov/arcgis/rest/services/VA_Base_Layers/VA_Address_Points/FeatureServer/0";
+
+// Map adapter slug → { stateFips, countyFips, countyName }
+const SW_VA_COUNTIES: Record<string, { countyFips: string; countyName: string }> = {
+  "scott-va":      { countyFips: "169", countyName: "Scott County" },
+  "russell-va":    { countyFips: "167", countyName: "Russell County" },
+  "washington-va": { countyFips: "191", countyName: "Washington County" },
+  "smyth-va":      { countyFips: "173", countyName: "Smyth County" },
+  "wythe-va":      { countyFips: "197", countyName: "Wythe County" },
+  "tazewell-va":   { countyFips: "185", countyName: "Tazewell County" },
+  "buchanan-va":   { countyFips: "027", countyName: "Buchanan County" },
+  "dickenson-va":  { countyFips: "051", countyName: "Dickenson County" },
+  "giles-va":      { countyFips: "071", countyName: "Giles County" },
+  "grayson-va":    { countyFips: "077", countyName: "Grayson County" },
+  "lee-va":        { countyFips: "105", countyName: "Lee County" },
+  "montgomery-va": { countyFips: "121", countyName: "Montgomery County" },
+  "pulaski-va":    { countyFips: "155", countyName: "Pulaski County" },
+  "roanoke-va":    { countyFips: "161", countyName: "Roanoke County" },
+  "wise-va":       { countyFips: "195", countyName: "Wise County" },
+};
+
+// ---------------------------------------------------------------------------
+// Arg parsing
+// ---------------------------------------------------------------------------
 
 function parseArgs(argv: string[]): Args {
   const out: Args = { adapter: "scott-va", limit: Infinity, dryRun: false };
@@ -40,18 +77,88 @@ function parseArgs(argv: string[]): Args {
   return out;
 }
 
-function pickAdapter(name: string): ParcelAdapter {
-  switch (name) {
-    case "scott-va": {
-      const endpoint = process.env.VGIN_ADDRESSES_URL ?? process.env.VGIN_PARCELS_URL;
-      return endpoint
-        ? createScottCountyVaAdapter({ endpoint })
-        : scottCountyVaAdapter;
-    }
-    default:
-      throw new Error(`Unknown adapter: ${name}`);
-  }
+// ---------------------------------------------------------------------------
+// Generic VA county adapter (VGIN VA_Address_Points, any county by FIPS)
+// ---------------------------------------------------------------------------
+
+function formatZip(raw: unknown): string | null {
+  if (raw == null || raw === "") return null;
+  const n = typeof raw === "number" ? raw : parseInt(String(raw), 10);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return String(n).padStart(5, "0");
 }
+
+function createVaCountyAdapter(countyFips: string, countyName: string): ParcelAdapter {
+  const fipsFull = `51${countyFips}`;
+  const endpoint = process.env.VGIN_ADDRESSES_URL ?? DEFAULT_VGIN_ADDRESSES_URL;
+  return {
+    meta: {
+      source: `VGIN VA_Address_Points (${countyName}, FIPS ${fipsFull})`,
+      stateFips: "51",
+      countyFips,
+    },
+    fetchAll() {
+      return fetchArcGisFeatures({
+        url: endpoint,
+        where: `FIPS = '${fipsFull}'`,
+      });
+    },
+    normalize(raw: ParcelRaw): Parcel | null {
+      const feature = raw as unknown as ArcGisFeature;
+      const props = feature?.properties ?? {};
+      const externalId = props["ADDPTKEY"];
+      if (!externalId) return null;
+      const fullAddr = props["FULLADDR"];
+      if (!fullAddr || typeof fullAddr !== "string" || !fullAddr.trim()) return null;
+      const rawCity =
+        (props["PO_NAME"] as string | undefined)?.trim() ||
+        (props["MUNICIPALITY"] as string | undefined)?.trim() ||
+        countyName;
+      const postal = formatZip(props["ZIP_5"]);
+      if (!postal) return null;
+      const geom = feature.geometry;
+      if (!geom || geom.type !== "Point") return null;
+      const [lon, lat] = geom.coordinates as [number, number];
+      if (!isFinite(lon) || !isFinite(lat)) return null;
+      return {
+        external_id: String(externalId),
+        state_fips: "51",
+        county_fips: countyFips,
+        address_line1: fullAddr.trim(),
+        city: rawCity,
+        state: "VA",
+        postal_code: postal,
+        centroid: { type: "Point" as const, coordinates: [lon, lat] as [number, number] },
+        has_existing_solar: false,
+        primary_orientation: "unknown" as const,
+      };
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Adapter factory
+// ---------------------------------------------------------------------------
+
+function pickAdapter(name: string): ParcelAdapter {
+  if (name === "scott-va") {
+    const endpoint = process.env.VGIN_ADDRESSES_URL ?? process.env.VGIN_PARCELS_URL;
+    return endpoint
+      ? createScottCountyVaAdapter({ endpoint })
+      : scottCountyVaAdapter;
+  }
+  const county = SW_VA_COUNTIES[name];
+  if (county) {
+    return createVaCountyAdapter(county.countyFips, county.countyName);
+  }
+  throw new Error(
+    `Unknown adapter: ${name}. Valid options: ${Object.keys(SW_VA_COUNTIES).join(", ")}`,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Main
+// ---------------------------------------------------------------------------
 
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
@@ -98,7 +205,6 @@ async function main(): Promise<void> {
         city: r.city,
         state: r.state,
         postal_code: r.postal_code,
-        // PostGIS expects WKT; geography column will cast.
         centroid: `SRID=4326;POINT(${r.centroid.coordinates[0]} ${r.centroid.coordinates[1]})`,
         primary_orientation: r.primary_orientation,
         year_built: r.year_built ?? null,

@@ -15,7 +15,15 @@ All notable changes to Sunpath. Dates are approximate session dates.
 - Neighborhood heat map layer toggle (MapLibre heatmap vs. dots)
 - "Build My Solar" button — coming-soon screen
 - Property dashboard UI revamp (dashboard layout, skeletons, badges)
-- Reports module: daily/weekly, conversion funnel, note search, export
+
+---
+
+## [0.9.0] — 2026-05-11 · Reports module + ingest workflow expansion
+
+### Added
+- Reports module (`/reports`): period selector (Today / Last 7 days / Last 30 days / All time), summary stat cards (doors knocked with trend, contact rate, callbacks, sales), outcome breakdown bar chart (all 6 outcomes with CSS bars), conversion funnel (Doors → Contact → Callback/Sit → Sale), best time of day heatmap (6am–9pm amber intensity grid), recent activity list (last 50 events with outcome badges and addresses), Export CSV button
+- `scripts/ingest-parcels.ts` expanded: now supports all 15 SW Virginia counties via VGIN VA_Address_Points statewide layer with dynamic county FIPS filter (was scott-va only); new `createVaCountyAdapter` factory for any VA county
+- `ingest-parcels.yml` workflow dropdown updated to list all 15 SW VA county adapters
 
 ---
 

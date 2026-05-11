@@ -116,7 +116,7 @@ Active sub-nav item: amber underline. Inactive: slate-500 text. Touch target: mi
 /properties/notes       → Notes browser — Phase 6-I stub now
 /territory              → Map  (URL stays; nav label = "Map")
 /build                  → Build My Solar stub
-/reports                → Reports stub
+/reports                → Reports module (v0.9.0)
 /about                  → About / settings  (was /settings)
 /settings               → redirect to /about
 /today                  → redirect to /home
@@ -1435,7 +1435,11 @@ PHONE — Notes panel (slides up from property dashboard)
 
 ---
 
-**6-I — Reports module (daily + weekly + searchable note archive)**
+**6-I — Reports module (✅ shipped v0.9.0, 2026-05-11)**
+
+> **What shipped (v0.9.0):** Period selector (Today/Last 7 days/Last 30 days/All time); summary stat cards (doors knocked with trend vs. prior period, contact rate, callbacks, sales); outcome breakdown bar chart (all 6 outcomes, CSS bars); conversion funnel (Doors → Contact → Callback/Sit → Sale); best time of day heatmap (6am–9pm, amber intensity); recent activity list (last 50 events with outcome badges + address); Export CSV. POC mode banner when no account.
+
+The full vision below remains the roadmap for deeper Phase 6-I iterations (Phase 7 AI layer adds objection analysis and voice search).
 
 The reports module turns the rep's raw activity data into actionable self-coaching. This is a solo tool — not surveillance, not for a manager. It surfaces patterns the rep can act on.
 

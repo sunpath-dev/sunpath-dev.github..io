@@ -10,6 +10,20 @@ on:
         type: choice
         options:
           - scott-va
+          - russell-va
+          - washington-va
+          - smyth-va
+          - wythe-va
+          - tazewell-va
+          - buchanan-va
+          - dickenson-va
+          - giles-va
+          - grayson-va
+          - lee-va
+          - montgomery-va
+          - pulaski-va
+          - roanoke-va
+          - wise-va
       limit:
         description: "Max parcels to ingest (leave blank for all)"
         required: false

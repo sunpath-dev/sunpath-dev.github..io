@@ -90,6 +90,41 @@ Full-page `/admin` operator console. Admin-role gated (`rep.role = 'admin'`).
 
 ---
 
+## Shipped — Phase 6-I: Reports module (v0.9.0, 2026-05-11)
+
+Activity reporting and conversion analytics for reps.
+
+| Item | Description | Status |
+|------|-------------|--------|
+| 6-I-A | Period selector: Today / Last 7 days / Last 30 days / All time | ✅ Shipped |
+| 6-I-B | Summary stat cards: Doors knocked (with period-over-period trend), Contact rate, Callbacks, Sales | ✅ Shipped |
+| 6-I-C | Outcome breakdown bar chart: all 6 outcomes (No Answer, Soft No, Hard No, Callback, Sit, Sale) with CSS-width bars | ✅ Shipped |
+| 6-I-D | Conversion funnel: Doors → Contact → Callback/Sit → Sale | ✅ Shipped |
+| 6-I-E | Best time of day heatmap: 6am–9pm amber intensity grid | ✅ Shipped |
+| 6-I-F | Recent activity list: last 50 events with outcome badges and addresses | ✅ Shipped |
+| 6-I-G | Export CSV: all events for the selected period | ✅ Shipped |
+| 6-I-H | POC mode banner (no data in guest mode) | ✅ Shipped |
+
+---
+
+## Shipped — v0.8.0: Property detail fix, profile improvements, map UX (2026-05-11)
+
+Critical bug fix and UX improvements.
+
+| Item | Description | Status |
+|------|-------------|--------|
+| v0.8-A | **Property detail "not found" fix** — `PropertyDetailRoute` was querying non-existent columns; switched to `parcel_by_id` RPC that extracts lat/lon from PostGIS centroid | ✅ Shipped |
+| v0.8-B | **Recently viewed coordinates fix** — downstream of above; `saveRecent` now called correctly | ✅ Shipped |
+| v0.8-C | **Profile avatar** — Gravatar / identicon (SHA-256 of email, Web Crypto API, no libs) | ✅ Shipped |
+| v0.8-D | **Personalized greeting** — "Good morning/afternoon/evening, [first name]" on profile | ✅ Shipped |
+| v0.8-E | **Map filter score explanation** — 8 factors, point values, color scale inline in filter panel | ✅ Shipped |
+| v0.8-F | **Data source notes** — inline clarification on "Hide existing solar" and "Owner-occupied only" data origin | ✅ Shipped |
+| v0.8-G | **Heatmap tooltip** — explains what the overlay shows and when it's most useful | ✅ Shipped |
+| v0.8-H | **Calendar section simplified** — removed 3 disabled connect buttons; replaced with single "coming soon" line | ✅ Shipped |
+| v0.8-I | Migration 0031: `parcel_by_id` RPC + `handle_new_auth_user` trigger fix | ✅ Shipped |
+
+---
+
 ## Shipped — Phase 6.5: Navigation restructure + draggable dashboards (2026-05-10)
 
 Complete 6-tab navigation overhaul and draggable dashboard framework.
@@ -126,7 +161,7 @@ The property dashboard is the heart of the app. This sprint completes it.
 | 6-F | **Build My Solar** button — coming-soon screen with panel layout preview description | Planned |
 | 6-G | Property dashboard UI revamp — dashboard layout, skeleton loaders, estimated vs. actual badges | Planned |
 | 6-H | **Property notes** — voice (Web Speech API), text, and photo capture linked to each parcel; smart follow-up trigger detection from note text | Planned |
-| 6-I | **Reports module** — daily/weekly activity summary, conversion funnel, objection analysis, searchable note archive, export as PDF/text | Planned |
+| 6-I | **Reports module** — daily/weekly activity summary, conversion funnel, best time of day, recent activity, export CSV | ✅ Shipped |
 
 ---
 
