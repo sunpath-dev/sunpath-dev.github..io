@@ -5,9 +5,18 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import path from 'node:path'
+import { readFileSync } from 'node:fs'
+import { execSync } from 'node:child_process'
+
+const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url).pathname, 'utf-8')) as { version: string }
+const gitHash = (() => { try { return execSync('git rev-parse --short HEAD', { stdio: ['pipe', 'pipe', 'pipe'] }).toString().trim(); } catch { return 'dev'; } })()
 
 export default defineConfig({
   base: '/',
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
+    __GIT_HASH__: JSON.stringify(gitHash),
+  },
   plugins: [
     react(),
     VitePWA({
