@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase.js";
 import { useAuth } from "@/lib/auth.js";
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL as string | undefined) || "https://sclisaylpwnffkkyepow.supabase.co";
 const REPO = "https://github.com/sunpath-dev/sunpath-dev.github.io";
 const SUPABASE_DASH = "https://supabase.com/dashboard/project/sclisaylpwnffkkyepow";
 

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase.js";
 import { useAuth } from "@/lib/auth.js";
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL as string | undefined) || "https://sclisaylpwnffkkyepow.supabase.co";
 
 interface RepRow {
   id: string;
