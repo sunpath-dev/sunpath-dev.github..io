@@ -22,6 +22,11 @@ export default tseslint.config(
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
+      // v7 rules that are too aggressive for this codebase:
+      // set-state-in-effect fires on any async setState call in effects (false positive for data fetching)
+      // purity fires on Date.now() inside async event handlers (not a render-time side effect)
+      "react-hooks/set-state-in-effect": "off",
+      "react-hooks/purity": "off",
       "react-refresh/only-export-components": [
         "warn",
         { allowConstantExport: true },

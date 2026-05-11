@@ -118,7 +118,6 @@ function EditRepModal({ rep, onClose, onSave }: EditRepModalProps) {
   const [resetMsg, setResetMsg] = useState<string | null>(null);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
     if (rep) {
       setName(rep.display_name ?? "");
@@ -1139,7 +1138,6 @@ export function AdminRoute() {
     setLoading(false);
   }, []);
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
     if (rep?.role === "admin") void refresh();
   }, [rep, refresh]);
