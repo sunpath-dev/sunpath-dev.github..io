@@ -105,12 +105,18 @@ export function PropertiesRoute() {
           <div>
             <div className="divide-y">
               {route.slice(0, 8).map((r, i) => (
-                <div key={r.id} className="flex items-center gap-3 px-4 py-2.5">
+                <button
+                  key={r.id}
+                  type="button"
+                  onClick={() => navigate(`/properties/${r.id}`)}
+                  className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-amber-50 active:bg-amber-100"
+                >
                   <span className="w-4 shrink-0 text-center text-xs font-semibold text-slate-400">{i + 1}</span>
                   <ScoreDot score={r.score} />
-                  <span className="flex-1 truncate text-sm text-slate-800">{r.address}</span>
-                  <span className="shrink-0 text-xs font-semibold text-slate-500">{r.score}</span>
-                </div>
+                  <span className="flex-1 truncate text-sm font-medium text-slate-900">{r.address}</span>
+                  <span className="shrink-0 text-xs font-semibold text-amber-600">{r.score}</span>
+                  <span className="shrink-0 text-xs text-slate-400">→</span>
+                </button>
               ))}
               {route.length > 8 && (
                 <div className="px-4 py-2 text-xs text-slate-400">+{route.length - 8} more stops</div>

@@ -63,13 +63,13 @@ function TabItem({ to, label, icon }: typeof tabs[number]) {
       to={to}
       className={({ isActive }) =>
         [
-          "flex flex-col items-center justify-center gap-0.5 text-xs font-medium",
+          "flex w-full flex-col items-center justify-center gap-0.5 min-w-0 font-medium",
           isActive ? "text-amber-600" : "text-slate-400 hover:text-slate-700",
         ].join(" ")
       }
     >
       {icon}
-      <span>{label}</span>
+      <span className="w-full truncate text-center text-[10px] leading-none">{label}</span>
     </NavLink>
   );
 }
@@ -100,7 +100,7 @@ export function AppShell() {
 
       {/* Main content */}
       <div className="flex flex-1 flex-col overflow-hidden">
-        <main className="flex-1 overflow-hidden">
+        <main className="flex flex-1 flex-col min-h-0 overflow-hidden">
           <Outlet />
         </main>
 

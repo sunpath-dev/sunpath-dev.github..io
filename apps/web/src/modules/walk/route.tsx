@@ -160,7 +160,7 @@ export function WalkRoute() {
   // Empty state
   if (route.length === 0) {
     return (
-      <div className="flex h-full flex-col">
+      <div className="flex h-full flex-col bg-white">
         {subNav}
         <header className="border-b bg-white px-4 py-3">
           <h1 className="text-lg font-bold">Today's Route · {today}</h1>
@@ -198,7 +198,7 @@ export function WalkRoute() {
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col bg-white">
       {subNav}
       <header className="border-b bg-white px-4 py-3">
         <div className="flex items-center justify-between">
@@ -273,7 +273,7 @@ export function WalkRoute() {
                       ) : (
                         <ScoreDot score={entry.score} />
                       )}
-                      <span className="flex-1 truncate text-sm font-medium text-slate-800">
+                      <span className="flex-1 truncate text-sm font-medium text-slate-900">
                         {entry.address}
                       </span>
                       {entry.score >= 0 && !knocked && (
@@ -327,12 +327,19 @@ export function WalkRoute() {
               </button>
               <div className="flex items-start gap-2">
                 <ScoreDot score={selected.score} />
-                <div>
+                <div className="min-w-0 flex-1">
                   <h2 className="text-xl font-bold text-slate-900">{selected.address}</h2>
                   <div className="mt-1 flex gap-3 text-xs text-slate-500">
                     {selected.score >= 0 && <span>Score: {selected.score}</span>}
                     {distanceLabel(geo, selected) && <span>{distanceLabel(geo, selected)}</span>}
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/properties/${selected.id}`)}
+                    className="mt-2 text-xs font-semibold text-amber-600 hover:text-amber-700 hover:underline"
+                  >
+                    Open full dashboard →
+                  </button>
                 </div>
               </div>
             </div>

@@ -82,6 +82,23 @@ function buildMapFilter(
   return conditions.length > 1 ? conditions : null;
 }
 
+const RECENT_KEY = "properties:recent";
+const MAX_RECENT = 10;
+
+function saveRecent(id: string, address: string) {
+  try {
+    const raw = localStorage.getItem(RECENT_KEY);
+    const current = raw
+      ? (JSON.parse(raw) as { id: string; address: string; viewedAt: number }[])
+      : [];
+    const filtered = current.filter((r) => r.id !== id);
+    localStorage.setItem(
+      RECENT_KEY,
+      JSON.stringify([{ id, address, viewedAt: Date.now() }, ...filtered].slice(0, MAX_RECENT)),
+    );
+  } catch (_e) { void _e; }
+}
+
 export function TerritoryRoute() {
   const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -252,7 +269,7 @@ export function TerritoryRoute() {
       const city = props?.city ?? "";
       const state = props?.state ?? "VA";
       const fullAddress = [street, city, state].filter(Boolean).join(", ");
-      setSelected({
+      const detail = {
         id: props?.id ?? "",
         address: fullAddress || "(unknown address)",
         state,
@@ -260,7 +277,9 @@ export function TerritoryRoute() {
         lon: coords[0],
         score: props?.score ?? -1,
         existing: (props?.existing ?? 0) === 1,
-      });
+      };
+      if (detail.id) saveRecent(detail.id, detail.address);
+      setSelected(detail);
     });
     map.on("mouseenter", "parcels-circle", () => {
       map.getCanvas().style.cursor = "pointer";

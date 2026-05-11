@@ -79,7 +79,8 @@ function sunsetCountdown(sunsetStr: string | undefined): string {
   const sunset = parseSunsetDate(sunsetStr);
   if (!sunset) return "";
   const diffMs = sunset.getTime() - Date.now();
-  if (diffMs <= 0) return "Sun has set";
+  // NWS sometimes returns tomorrow's sunset after today's has passed; cap at 16h
+  if (diffMs <= 0 || diffMs > 16 * 3_600_000) return "Sun has set";
   const hrs = Math.floor(diffMs / 3_600_000);
   const mins = Math.floor((diffMs % 3_600_000) / 60_000);
   return hrs > 0 ? `${hrs}h ${mins}m of daylight left` : `${mins}m of daylight left`;
