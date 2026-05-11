@@ -178,7 +178,7 @@ export function ReportsRoute() {
         : Promise.resolve({ data: [] }),
     ]);
     const rows: DoorEvent[] = (cur.data ?? []).map((r) => {
-      const raw = r as { id: string; parcel_id: string; outcome: string; occurred_at: string; parcel: { address_line1: string } | null };
+      const raw = r as unknown as { id: string; parcel_id: string; outcome: string; occurred_at: string; parcel: { address_line1: string } | null };
       return {
         id: raw.id,
         parcel_id: raw.parcel_id,
