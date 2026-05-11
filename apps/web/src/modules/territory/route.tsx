@@ -112,6 +112,7 @@ export function TerritoryRoute() {
   const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MlMap | null>(null);
+  const satelliteInitRef = useRef(false);
   const [parcelCount, setParcelCount] = useState<number>(0);
   const [selected, setSelected] = useState<ParcelDetail | null>(null);
   const lastPinsRef = useRef<ParcelPin[]>([]);
@@ -153,11 +154,13 @@ export function TerritoryRoute() {
 
     map.on("load", () => {
       map.resize();
-      map.addSource(PARCEL_SOURCE, {
-        type: "geojson",
-        data: { type: "FeatureCollection", features: [] },
-      });
-      map.addLayer({
+      if (!map.getSource(PARCEL_SOURCE)) {
+        map.addSource(PARCEL_SOURCE, {
+          type: "geojson",
+          data: { type: "FeatureCollection", features: [] },
+        });
+      }
+      if (!map.getLayer(CIRCLE_LAYER)) map.addLayer({
         id: "parcels-circle",
         type: "circle",
         source: PARCEL_SOURCE,
@@ -192,7 +195,7 @@ export function TerritoryRoute() {
         },
       });
       // Heatmap layer — hidden by default; toggled via showHeatmap state
-      map.addLayer({
+      if (!map.getLayer(HEATMAP_LAYER)) map.addLayer({
         id: HEATMAP_LAYER,
         type: "heatmap",
         source: PARCEL_SOURCE,
@@ -415,6 +418,12 @@ export function TerritoryRoute() {
   }, [searchParams]);
 
   useEffect(() => {
+    // Skip on initial mount — map already initialized with STREET_STYLE.
+    // Only runs when the user explicitly toggles satellite mode.
+    if (!satelliteInitRef.current) {
+      satelliteInitRef.current = true;
+      return;
+    }
     const map = mapRef.current;
     if (!map) return;
     const newStyle = isSatellite ? SAT_STYLE_FULL : STREET_STYLE;
