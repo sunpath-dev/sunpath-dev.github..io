@@ -78,16 +78,20 @@ Every signal that feeds Sunpath comes from a named public agency or open dataset
 
 | Source | What it provides | Notes |
 |---|---|---|
-| NOAA National Weather Service (`api.weather.gov`) | Current conditions, forecast, severe weather alerts | No API key required; official US government data |
+| NOAA National Weather Service (`api.weather.gov`) | Current conditions, hourly forecast, severe weather alerts, sunrise/sunset | No API key required; official US government data |
 | NREL PVWatts v8 | Per-address solar production estimate (kWh/yr), system-size model | Free API with key; authoritative federal source |
+| NREL Solar Resource | Peak sun hours per day by location | Pairs with PVWatts for per-roof production modeling |
 | NREL Utility Rates v3 | Current utility name and retail rate per kWh by location | Pairs with PVWatts for financial modeling |
 | US Census ACS 5-year | Owner-occupancy rate, median household income, median home value, energy burden by census tract | Free API with key; American Community Survey public-use data |
+| US Census Geocoder | Reverse geocode GPS coordinates → county FIPS code for area intelligence | Used to auto-detect the rep's current county from GPS |
 | DSIRE (`dsireusa.org`) | State solar incentive programs, rebates, net metering rules in effect today | Free API with registration; NC Clean Energy Technology Center |
 | EIA v2 | Utility rate trends, year-over-year change by utility and state | Free API with key; US Energy Information Administration |
+| ArcGIS World Geocoding | Address search and parcel match | Covers all US rural roads including counties without a local geocoder |
+| Nominatim (OpenStreetMap) | Reverse geocode GPS → county name and state | Open, no key; used alongside Census Geocoder for county display name |
+| OpenStreetMap / Overpass | Map tiles, building footprints, parcel geometry | Open data; tiles cached locally for offline use |
 | County permit records | Neighbor solar permits within ¼ mile | Sourced via county GIS / open permit feeds where available |
 | Property sales data | Recent ownership change as a rewarm signal | County assessor or state GIS transfer records |
-| ArcGIS World Geocoding | Address lookup and parcel match | Covers all US rural roads including counties without a local geocoder |
-| Google Solar API *(planned)* | Per-roof segment analysis, viable panel area, maximum panel count | Free API; adds per-roof precision beyond the PVWatts point estimate |
+| Google Solar API *(planned)* | Per-roof segment analysis, viable panel area, maximum panel count | Adds per-roof precision beyond the PVWatts point estimate |
 
 All third-party API calls are routed through server-side edge functions. API keys never reach the device. The browser communicates only with Sunpath's own backend.
 
