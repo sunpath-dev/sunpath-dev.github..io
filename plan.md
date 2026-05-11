@@ -67,7 +67,830 @@ Walk list, route order, outcome logging, revisit queue. These are useful logisti
 
 ## UI flow & screen mockups
 
-User flow: **sign-on → Today dashboard → tools (map, walk list, bill, etc.)**.
+> **Updated 2026-05-10 session 9.** Complete redesign — 6-tab nav, Properties primary dashboard, draggable + collapsible cards on every screen. The old 5-tab (Today/Map/Walk/Bill/Settings) mockups are replaced by the spec below.
+
+---
+
+### Information architecture
+
+#### Bottom navigation — 6 tabs, always in this order
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                         (active screen)                          │
+│                                                                  │
+├──────────────────────────────────────────────────────────────────┤
+│ 🏠 Home │ 🏘 Properties │ 🗺 Map │ ☀ Build │ 📊 Reports │ ⚙ About │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+- Active tab: amber-600 text + icon. Inactive: slate-400.
+- On mobile: fixed 56px bar at bottom, inset for safe area. Keyboard visible → bar hidden (CSS `env(keyboard-inset-height)`).
+- On tablet (≥768px) and desktop (≥1024px): collapses to a left-rail sidebar with icon + label.
+- **Walk** and **Bill** are NOT tabs. Walk lives inside Properties. Bill is a button inside the property detail.
+- **Rule (load-bearing):** never re-add Walk or Bill as primary nav tabs. See CLAUDE.md.
+
+#### Per-dashboard sub-navigation
+
+Each dashboard has its own secondary nav strip (36px tall, slate-100 bg, horizontally scrollable on phones):
+
+| Dashboard | Sub-nav |
+|---|---|
+| Home | *(none — Home is the root)* |
+| Properties | `🔍 Search · 🗺 Map · 🚶 Walk · 📝 Notes · 📊 Stats` |
+| Map | `🏠 Home · 🏘 Properties · 🔍 Search · 🛰 Satellite · ⚙ Filters` |
+| Build | `🏠 Home · 🏘 Properties` |
+| Reports | `🏠 Home · 🏘 Properties` |
+| About | *(none)* |
+
+Active sub-nav item: amber underline. Inactive: slate-500 text. Touch target: min 44px tall.
+
+#### Route map
+
+```
+/                       → redirect to /home
+/home                   → Home dashboard  (was /today)
+/properties             → Properties landing
+/properties/:id         → Full property dashboard
+/properties/walk        → Active walking session  (was /walk)
+/properties/notes       → Notes browser — Phase 6-I stub now
+/territory              → Map  (URL stays; nav label = "Map")
+/build                  → Build My Solar stub
+/reports                → Reports stub
+/about                  → About / settings  (was /settings)
+/settings               → redirect to /about
+/today                  → redirect to /home
+/walk                   → redirect to /properties/walk
+/bill?parcel_id=…       → Bill capture (only entered from property detail)
+```
+
+---
+
+### Shared component: `<DashboardCard>`
+
+Every section on every dashboard (except non-draggable headers and action bars) wraps in this component.
+
+**Props:**
+```tsx
+interface DashboardCardProps {
+  id: string;                // unique within dashboard, used as sort key
+  title: string;             // header label
+  badge?: string | number;   // optional badge (e.g. note count "3")
+  collapsedByDefault?: boolean;
+  storageKey: string;        // e.g. "dashboard:home" — shared with DashboardCardList
+  children: React.ReactNode;
+}
+```
+
+**Visual anatomy (phone, collapsed = false):**
+```
+┌──────────────────────────────────────────────┐
+│ ⋮⋮  Section title              [badge]   ▾  │  ← header (44px touch target)
+├──────────────────────────────────────────────┤
+│                                              │
+│   … card body content …                     │
+│                                              │
+└──────────────────────────────────────────────┘
+```
+
+**Behavior:**
+- `⋮⋮` drag handle: visible on hover/touch; 24×44px touch area; shows grab cursor on desktop.
+- `▾` / `▸` collapse chevron: animates 200ms. Collapsed body height = 0px, overflow hidden.
+- Drag-to-reorder: powered by `@dnd-kit/sortable` (`useSortable` hook on each card, `SortableContext` in `DashboardCardList`).
+- Mobile drag: long-press (500ms) activates drag; visual lift shadow added.
+- Desktop drag: click-drag on the `⋮⋮` handle.
+- Drop indicator: 2px amber line at insertion point.
+- Drag overlay: a semi-transparent clone of the card floats with the cursor.
+
+**Layout persistence — localStorage schema:**
+```json
+// key: "dashboard:home"
+{
+  "order": ["full-forecast", "walk-window", "calendar", "planning", "area-intel", "quick-actions", "pitch"],
+  "collapsed": { "calendar": true }
+}
+```
+Key naming: `dashboard:{screen}` where screen = `home`, `properties-landing`, `properties-detail`, etc.
+
+**Reset:** Footer link `[↺ Reset layout]` clears the localStorage key and restores default order.
+
+**Post-auth roadmap:** Supabase table `rep_dashboard_layout (rep_id, dashboard, order jsonb, collapsed jsonb)` — sync on login, write on change. Phase 8-D.
+
+**File:** `apps/web/src/components/DashboardCard.tsx`
+**List host:** `apps/web/src/components/DashboardCardList.tsx` (wraps `DndContext + SortableContext + DragOverlay`)
+**Hook:** `apps/web/src/hooks/useDashboardLayout.ts` (read/write localStorage, returns `{order, collapsed, reorder, toggle}`)
+
+**Dependencies to add:**
+```
+pnpm add @dnd-kit/core @dnd-kit/sortable @dnd-kit/utilities
+```
+
+---
+
+### Design tokens (Tailwind classes used throughout)
+
+| Role | Class |
+|---|---|
+| Primary action | `bg-amber-500 text-white hover:bg-amber-600 active:bg-amber-700` |
+| Secondary action | `border border-slate-300 text-slate-700 hover:bg-slate-50` |
+| Page background | `bg-slate-50` |
+| Card background | `bg-white rounded-xl shadow-sm border border-slate-100` |
+| Section header | `text-xs font-semibold uppercase tracking-wide text-slate-500` |
+| Body text | `text-sm text-slate-800` |
+| Muted text | `text-xs text-slate-500` |
+| Error text | `text-xs text-red-600` |
+| Score dot red (≥80) | `bg-red-500` |
+| Score dot orange (≥60) | `bg-orange-400` |
+| Score dot yellow (≥40) | `bg-yellow-400` |
+| Score dot amber (<40) | `bg-amber-300` |
+| Amber header strip | `bg-amber-500 text-white` |
+| Skeleton | `animate-pulse rounded bg-slate-100` |
+
+---
+
+### Screen 1 — Sign-in / Login (`/`)
+
+```
+PHONE                               TABLET                                  DESKTOP
+┌────────────────────────────────┐  ┌──────────────────────────────────┐   ┌──────────────────────────────────────────────┐
+│                                │  │                                  │   │                                              │
+│         ☀  Sunpath             │  │        ☀  Sunpath                │   │              ☀  Sunpath                     │
+│   Field intelligence for       │  │   Field intelligence for         │   │        Field intelligence for solar reps.    │
+│       solar reps.              │  │         solar reps.              │   │                                              │
+│                                │  │                                  │   │   ┌──────────────────────────────────────┐   │
+│ ┌──────────────────────────┐   │  │  ┌────────────────────────────┐  │   │   │   Continue with Google               │   │
+│ │   Continue with Google   │   │  │  │   Continue with Google     │  │   │   └──────────────────────────────────────┘   │
+│ └──────────────────────────┘   │  │  └────────────────────────────┘  │   │   ┌──────────────────────────────────────┐   │
+│ ┌──────────────────────────┐   │  │  ┌────────────────────────────┐  │   │   │   Continue with Microsoft            │   │
+│ │ Continue with Microsoft  │   │  │  │  Continue with Microsoft   │  │   │   └──────────────────────────────────────┘   │
+│ └──────────────────────────┘   │  │  └────────────────────────────┘  │   │   ┌──────────────────────────────────────┐   │
+│ ┌──────────────────────────┐   │  │  ┌────────────────────────────┐  │   │   │   Continue with Apple                │   │
+│ │  Continue with Apple     │   │  │  │   Continue with Apple      │  │   │   └──────────────────────────────────────┘   │
+│ └──────────────────────────┘   │  │  └────────────────────────────┘  │   │                                              │
+│ ┌──────────────────────────┐   │  │  ┌────────────────────────────┐  │   │   ┌──────────────────────────────────────┐   │
+│ │  ▶ Enter as guest (POC)  │   │  │  │  ▶ Enter as guest (POC)   │  │   │   │   ▶ Enter as guest (POC)             │   │
+│ └──────────────────────────┘   │  │  └────────────────────────────┘  │   │   └──────────────────────────────────────┘   │
+└────────────────────────────────┘  └──────────────────────────────────┘   └──────────────────────────────────────────────┘
+```
+
+**Behavior:**
+- Google / Microsoft / Apple buttons: visible now, disabled until Phase 8 OAuth wired. Each shows `opacity-50 cursor-not-allowed` + tooltip "Coming soon — Phase 8".
+- "Enter as guest (POC)" button: fully active, calls `enter()` from `useAuth()`. Amber fill, full-width on phone.
+- Background: `bg-slate-50`. Logo: amber-500 sun icon + "Sunpath" in slate-900.
+
+**File:** `apps/web/src/components/SignInScreen.tsx` (exists — update OAuth buttons)
+
+---
+
+### Screen 2 — Home dashboard (`/home`)
+
+**Purpose:** rep's morning briefing. ~10% of daily usage. Every card is `<DashboardCard>` (draggable + collapsible). The amber weather header is non-draggable.
+
+```
+PHONE                                          TABLET (2-col grid)
+┌──────────────────────────────────────────┐   ┌─────────────────────────────────────────────────────────┐
+│ ╔══════════════════════════════════════╗ │   │ ╔═══════════════════════════════════════════════════╗   │
+│ ║ Mon · May 11              ▼ rep ▼   ║ │   │ ║ Mon · May 11                        ▼ rep ▼        ║   │
+│ ║ ☀ 72°F clear · 5mph N               ║ │   │ ║ ☀ 72°F clear · wind 5mph N · sunset 8:14           ║   │
+│ ║ ☀ sunset 8:14 · 5h 14m left        ║ │   │ ║ 5h 14m of daylight remaining                       ║   │
+│ ╚══════════════════════════════════════╝ │   │ ╚═══════════════════════════════════════════════════╝   │
+│                                          │   │ ┌─────────────────────────┐ ┌──────────────────────────┐│
+│ ⋮⋮ Full day forecast              ▾     │   │ │ ⋮⋮ Full day forecast  ▾ │ │ ⋮⋮ Walk window        ▾  ││
+│ ┌──────────────────────────────────────┐│   │ │ 8a  11a  2p   5p   8p   │ │ Route: 8 stops · 1h 40m ││
+│ │ 8a  11a  2p  5p   8p                 ││   │ │ 64° 71°  78°  75°  64°  │ │ Best window: 4–7 PM     ││
+│ │  ☁   ☀   ☀   ☀    ◐                 ││   │ │  ☁   ☀   ☀    ☀    ◐   │ │ Starts in: 23 min       ││
+│ │ 64°  71° 78°  75°  64°               ││   │ │ Walkability: ★ ★ ★      │ │ [▶ Start Walking]       ││
+│ │ Walkability: ★ ★ ★                  ││   │ │ Best window: 4–7 PM     │ └──────────────────────────┘│
+│ │ Best walk window: 4–7 PM            ││   │ └─────────────────────────┘ ┌──────────────────────────┐│
+│ └──────────────────────────────────────┘│   │ ┌─────────────────────────┐ │ ⋮⋮ Calendar          ▾  ││
+│                                          │   │ │ ⋮⋮ Planning          ▾  │ │ M  T  W  T  F  S  S    ││
+│ ⋮⋮ Walk window                    ▾     │   │ │ 3 callbacks due today   │ │ ●  ●  ◌  ●  ●  ◌  ◌    ││
+│ ┌──────────────────────────────────────┐│   │ │ ● 142 Maple — 3d ago    │ │ 🔗 Google · Outlook    ││
+│ │ Route: 8 stops · ~1h 40m total walk  ││   │ │ ● 88 Oak — 5d ago       │ │    · Apple  (coming)   ││
+│ │ Best window starts in 23 min         ││   │ └─────────────────────────┘ └──────────────────────────┘│
+│ │ [▶ Start Walking → Properties/Walk]  ││   │ ┌─────────────────────────┐ ┌──────────────────────────┐│
+│ └──────────────────────────────────────┘│   │ │ ⋮⋮ Area Intel        ▾  │ │ ⋮⋮ Quick actions     ▾  ││
+│                                          │   │ │ Scott County, VA   ▾    │ │ [▶ Start route]         ││
+│ ⋮⋮ Calendar                       ▾     │   │ │ Owner-occ 78%           │ │ [🗺 Open map]           ││
+│ ┌──────────────────────────────────────┐│   │ │ Median income $52,400   │ │ [💬 Pitch scripts]      ││
+│ │ M   T   W   T   F   S   S            ││   │ │ Utility $0.142/kWh +9%  │ └──────────────────────────┘│
+│ │ ●   ●   ◌   ●   ●   ◌   ◌           ││   │ └─────────────────────────┘                            │
+│ │ 🔗 Connect Google Calendar           ││   │   [↺ Reset layout]                                     │
+│ │ 🔗 Connect Outlook                   ││   ├─────────────────────────────────────────────────────────┤
+│ │ 🔗 Connect Apple Calendar            ││   │ 🏠 Home  🏘 Prop  🗺 Map  ☀ Build  📊 Rpts  ⚙ About    │
+│ │ (all disabled — Phase 8)             ││   └─────────────────────────────────────────────────────────┘
+│ └──────────────────────────────────────┘│
+│                                          │   DESKTOP (left rail + 3-col card grid)
+│ ⋮⋮ Planning                       ▾     │   ┌────────────────────────────────────────────────────────────────────┐
+│ ┌──────────────────────────────────────┐│   │ ┌──────┐  Mon · May 11                               ▼ rep ▼        │
+│ │ 3 callbacks due today                ││   │ │ 🏠   │  ☀ 72°F clear · 5mph N · sunset 8:14 · 5h 14m left        │
+│ │ ● 142 Maple — 3d ago       [View]   ││   │ │ Home │  ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌──────────┐  │
+│ │ ● 88 Oak — 5d ago          [View]   ││   │ │ 🏘   │  │⋮⋮Forecast▾│ │⋮⋮Walk Wnd▾│ │⋮⋮Calendar▾│ │⋮⋮Plan ▾│  │
+│ │ ● 14 Cherry — 6d ago       [View]   ││   │ │ Prop │  │ 8a 11a 2p │ │8 stops     │ │M T W T F  │ │3 callbks│  │
+│ │ Todos: 2 open                        ││   │ │ 🗺   │  │ ★ ★ ★     │ │~1h 40m     │ │● ● ◌ ● ● │ │●142Mapl │  │
+│ └──────────────────────────────────────┘│   │ │ Map  │  │4–7PM best │ │[▶ Start]   │ │coming...  │ │●88 Oak  │  │
+│                                          │   │ │ ☀    │  └────────────┘ └────────────┘ └────────────┘ └──────────┘  │
+│ ⋮⋮ Area Intelligence              ▾     │   │ │ Build│  ┌────────────┐ ┌────────────┐                               │
+│ ┌──────────────────────────────────────┐│   │ │ 📊   │  │⋮⋮AreaIntel│ │⋮⋮Actions  │  [↺ Reset layout]             │
+│ │ Scott County, VA         ▾ change    ││   │ │ Rpts │  │ScottCo VA │ │[▶ Start]   │                               │
+│ │ Owner-occ 78% · Inc $52,400          ││   │ │ ⚙    │  │78% own-occ│ │[🗺 Map]    │                               │
+│ │ Med home $115,200                    ││   │ │ About│  └────────────┘ └────────────┘                               │
+│ │ $0.142/kWh (+9% YoY)                ││   │ └──────┘                                                               │
+│ │ 3 solar permits last 30d             ││   └────────────────────────────────────────────────────────────────────────┘
+│ └──────────────────────────────────────┘│
+│                                          │
+│ ⋮⋮ Quick actions                  ▾     │
+│ ┌──────────────────────────────────────┐│
+│ │ [▶ Start route]  [🗺 Open map]       ││
+│ │ [💬 Pitch scripts]                   ││
+│ └──────────────────────────────────────┘│
+│                                          │
+│   [↺ Reset layout]                       │
+├──────────────────────────────────────────┤
+│ 🏠 🏘 🗺 ☀ 📊 ⚙                          │
+└──────────────────────────────────────────┘
+```
+
+**Home — section-by-section data flow:**
+
+| Section | Data source | Empty state | Loading state | storageKey id |
+|---|---|---|---|---|
+| Weather header (non-draggable) | `weather-now` edge fn → NWS | "Allow location for weather" | Inline "Loading…" | — |
+| Full day forecast | Same edge fn — extend for hourly | "Forecast unavailable" | Skeleton rows | `full-forecast` |
+| Walk window | localStorage `route` + forecast | "Plan your route in Properties first" + [Open Properties] | Shows once route + weather loaded | `walk-window` |
+| Calendar | Disabled OAuth — no data yet | "Connect your calendar (Phase 8)" | N/A | `calendar` |
+| Planning | `door_event` where outcome='callback' last 30d | "No callbacks logged — knock some doors" | Skeleton rows | `planning` |
+| Area Intelligence | `geo-reverse` edge fn → census-fetch | "Allow location for area data" | Skeleton tiles | `area-intel` |
+| Quick actions | None | N/A | N/A | `quick-actions` |
+| Pitch scripts | Static — no data fetch | N/A | N/A | `pitch` |
+
+**Bugs fixed in this screen:**
+1. `sunsetCountdown()` — fix to handle ISO 8601 TZ strings AND time-only strings. Add 60s interval refresh.
+2. Area Intelligence hardcode — replace `state_fips: "51", county_fips: "169"` with `geo-reverse` edge fn call keyed on GPS; quick-switch picker stored in `localStorage["dashboard:home:area-override"]`.
+
+**File:** `apps/web/src/modules/home/route.tsx` (new; replaces `today/route.tsx` which remains as a redirect)
+
+---
+
+### Screen 3 — Properties landing (`/properties`)
+
+**Purpose:** starting point for field work. Three cards: search, today's walk plan, recently viewed.
+
+```
+PHONE                                              TABLET / DESKTOP
+┌────────────────────────────────────────────┐     ┌──────────────────────────────────────────────────────────┐
+│ Properties                                 │     │ Properties                                               │
+│ 🔍 Search · 🗺 Map · 🚶 Walk · 📝 Notes   │     │ 🔍 Search · 🗺 Map · 🚶 Walk · 📝 Notes · 📊 Stats      │
+├────────────────────────────────────────────┤     ├──────────────────────────────────────────────────────────┤
+│ ⋮⋮ Search                            ▾     │     │ ┌───────────────────────────┐ ┌───────────────────────────┐│
+│ ┌──────────────────────────────────────┐   │     │ │ ⋮⋮ Search             ▾   │ │ ⋮⋮ Today's Walk Plan  ▾   ││
+│ │ 🔍 Type address or owner name…       │   │     │ │ 🔍 Type address…          │ │ 8 houses · ~1h 40m walk   ││
+│ └──────────────────────────────────────┘   │     │ │                           │ │ 🔴 142 Maple  92  0.0mi   ││
+│ Results dropdown when typing:              │     │ │ Matches appear here       │ │ 🟠 88 Oak     78  0.3mi   ││
+│ ┌──────────────────────────────────────┐   │     │ │  142 Maple  score 92  ▸   │ │ 🟡 14 Cherry  64  0.5mi   ││
+│ │ 🔴 142 Maple St   score 92    ▸      │   │     │ │  88 Oak     score 78  ▸   │ │ 🟢 7 Pine     58  0.8mi   ││
+│ │ 🟠 88 Oak Ave     score 78    ▸      │   │     │ │  14 Cherry  score 64  ▸   │ │ … +4 more                 ││
+│ │ 🟡 14 Cherry Ln   score 64    ▸      │   │     │ └───────────────────────────┘ │ [▶ Start Walk]  [+ Add]   ││
+│ └──────────────────────────────────────┘   │     │ ┌───────────────────────────┐ └───────────────────────────┘│
+│                                            │     │ │ ⋮⋮ Recently viewed    ▾   │                              │
+│ ⋮⋮ Today's Walk Plan                 ▾     │     │ │ 142 Maple St  2 min ago   │                              │
+│ ┌──────────────────────────────────────┐   │     │ │ 88 Oak Ave    12 min ago  │                              │
+│ │ 8 houses · ~1h 40m walk              │   │     │ │ 14 Cherry Ln  1 hr ago    │                              │
+│ │ 🔴 142 Maple  92   0.0 mi  ✓ done   │   │     │ │ 7 Pine Ct     yesterday   │                              │
+│ │ 🟠 88 Oak     78   0.3 mi  ⏳ next  │   │     │ │ +6 more      [View all]   │                              │
+│ │ 🟡 14 Cherry  64   0.5 mi            │   │     │ └───────────────────────────┘                              │
+│ │ 🟢 7 Pine     58   0.8 mi            │   │     │   [↺ Reset layout]                                         │
+│ │ … +4 more                            │   │     ├──────────────────────────────────────────────────────────┤
+│ │ [▶ Start Walk]    [+ Add house]      │   │     │ 🏠 🏘 🗺 ☀ 📊 ⚙                                          │
+│ └──────────────────────────────────────┘   │     └──────────────────────────────────────────────────────────┘
+│                                            │
+│ ⋮⋮ Recently viewed                   ▾     │
+│ ┌──────────────────────────────────────┐   │
+│ │ 142 Maple St    2 min ago    [Open]  │   │
+│ │ 88 Oak Ave      12 min ago   [Open]  │   │
+│ │ 14 Cherry Ln    1 hr ago     [Open]  │   │
+│ │ 7 Pine Ct       yesterday    [Open]  │   │
+│ │ + 6 more               [View all →] │   │
+│ └──────────────────────────────────────┘   │
+│                                            │
+│   [↺ Reset layout]                         │
+├────────────────────────────────────────────┤
+│ 🏠 🏘 🗺 ☀ 📊 ⚙                            │
+└────────────────────────────────────────────┘
+```
+
+**Properties landing — data flow:**
+
+| Section | Data source | Persistence | Empty state |
+|---|---|---|---|
+| Search | Supabase `parcel` full-text (address_line1) debounced 300ms | Session only | "Type to search properties" |
+| Today's Walk Plan | `localStorage["route"]` (RouteEntry[]) | Persists across sessions | "No route planned. Open the map, tap a property, hit Add to route." + [Open Map] |
+| Recently viewed | `localStorage["properties:recent"]` (max 10, {id, address, score, viewedAt}) | Persists across sessions, max 10 | "Tap any property on the map or use search." |
+
+Sub-nav behavior:
+- `🔍 Search` → focuses the search input and scrolls to top
+- `🗺 Map` → `navigate('/territory')`
+- `🚶 Walk` → `navigate('/properties/walk')` (disabled + tooltip if route is empty)
+- `📝 Notes` → `navigate('/properties/notes')` (stub)
+- `📊 Stats` → opens a small modal with knock count, callback count, bills captured count
+
+**File:** `apps/web/src/modules/properties/route.tsx`
+
+---
+
+### Screen 4 — Property detail board (`/properties/:id`) — THE primary screen
+
+Every section is a `<DashboardCard>`. The amber header and the sticky action bar are non-draggable.
+
+```
+PHONE
+┌──────────────────────────────────────────────────────┐
+│ ← 142 Maple St                     [📌] [🔗] [✕]    │  ← non-draggable header
+│ Gate City, VA 24251                                  │
+│ ──────────────────────────────────────────────────   │
+│ KNOCK 92  ●HOA green  ★ Bill linked                  │  ← hero strip (non-draggable)
+│ $1,620/yr savings · Payback 8.1y · ☀ 4.8 hrs/day    │
+│ ──────────────────────────────────────────────────   │
+│ ⋮⋮ Property owner                             ▾      │
+│ ┌────────────────────────────────────────────────┐   │
+│ │ Owner: J. Smith  (redacted per privacy policy) │   │
+│ │ Owner-occupied · purchased 2018                │   │
+│ └────────────────────────────────────────────────┘   │
+│ ⋮⋮ Home facts                                  ▾      │
+│ ┌────────────────────────────────────────────────┐   │
+│ │ Built 1987 · 1,420 sqft · South-facing         │   │
+│ │ Assessed $142,000 · Last sold 2018 $128,000    │   │
+│ │ FEMA flood zone: X (low risk)                  │   │
+│ │ Roof age proxy: permit re-roof 2014            │   │
+│ └────────────────────────────────────────────────┘   │
+│ ⋮⋮ Area context (Census ACS 5-yr)             ▾      │
+│ ┌────────────────────────────────────────────────┐   │
+│ │ 78% owner-occupied                             │   │
+│ │ Median income $52,400                          │   │
+│ │ Median home value $115,200                     │   │
+│ │ Energy burden 4.8% · Broadband adoption 79%   │   │
+│ │ Median tenure 14.3 yrs                         │   │
+│ └────────────────────────────────────────────────┘   │
+│ ⋮⋮ Energy & solar                             ▾      │
+│ ┌────────────────────────────────────────────────┐   │
+│ │ Utility: AEP Appalachian Power                 │   │
+│ │ Rate: $0.142/kWh (+9.0% YoY — EIA trend)      │   │
+│ │ ☀ Peak sun: 4.8 hrs/day (NREL solar resource)  │   │
+│ │ State avg: 1,050 kWh/mo (EIA VA baseline)      │   │
+│ │ ─────── ★ Bill captured 2026-05-09 ──────────  │   │
+│ │   Your usage: 1,140 kWh/mo                     │   │
+│ │   Utility: AEP · Rate: $0.142/kWh              │   │
+│ │   Annual total: ~13,680 kWh/yr                 │   │
+│ └────────────────────────────────────────────────┘   │
+│ ⋮⋮ Roof analysis                              ▾      │
+│ ┌────────────────────────────────────────────────┐   │
+│ │ Orientation: South-facing                      │   │
+│ │ Viable area: ~940 sqft (OSM Overpass estimate) │   │
+│ │ Max system: 7.2 kW · ~18 panels               │   │
+│ │ Source: OSM Overpass fallback                  │   │
+│ │ (Google Solar API unlocks exact segments)      │   │
+│ └────────────────────────────────────────────────┘   │
+│ ⋮⋮ Financial model                            ▾      │
+│ ┌────────────────────────────────────────────────┐   │
+│ │ ★ Based on your actual bill                    │   │
+│ │ Annual savings: $1,620/yr                      │   │
+│ │ Payback: 8.1 yrs (with 30% federal ITC)       │   │
+│ │ 25-yr net savings: ~$21,400                    │   │
+│ │ [⚙ Adjust assumptions]                         │   │
+│ └────────────────────────────────────────────────┘   │
+│ ⋮⋮ Incentives                                 ▾      │
+│ ┌────────────────────────────────────────────────┐   │
+│ │ Federal ITC: 30% (no cap · through 2032)       │   │
+│ │ VA Solar Rebate: 25% (state — DSIRE)           │   │
+│ │ Net metering: Yes, 1:1 (Dominion VA)           │   │
+│ │ Source: DSIRE API + IRS Publication 946        │   │
+│ └────────────────────────────────────────────────┘   │
+│ ⋮⋮ Neighborhood proof                         ▾      │
+│ ┌────────────────────────────────────────────────┐   │
+│ │ ◆ 3 solar permits within ¼ mi · last 30 days   │   │
+│ │   Trend: ↑ +3 vs prior 30 days                 │   │
+│ │ ◆ 2 home sales nearby · median $135,000        │   │
+│ │ ◆ Solar adoption: 11 / 187 homes (5.9%)        │   │
+│ │ ◆ HOA: Maple Hills — solar approved ✓          │   │
+│ │ ◆ Solar permits this year: 14                  │   │
+│ │ ◆ Avg nearby system size: 6.8 kW               │   │
+│ │ [🗺 View heat map →]                            │   │
+│ └────────────────────────────────────────────────┘   │
+│ ⋮⋮ Notes  [3]                                 ▾      │
+│ ┌────────────────────────────────────────────────┐   │
+│ │ 2026-05-08  Husband works nights, kids home    │   │
+│ │   weekends. Wants HOA approval first.     [✎]  │   │
+│ │ 2026-05-01  Roof looks newer than 1987.   [✎]  │   │
+│ │ 2026-04-22  Initial knock, no answer.     [✎]  │   │
+│ │ ──────────────────────────────────────────     │   │
+│ │ [+ Text note]         [🎤 Voice note]          │   │
+│ └────────────────────────────────────────────────┘   │
+│ ⋮⋮ Activity history                           ▾      │
+│ ┌────────────────────────────────────────────────┐   │
+│ │ 2026-05-09 · Bill captured                     │   │
+│ │ 2026-05-08 · Knock → Callback                  │   │
+│ │ 2026-05-01 · Knock → No answer                 │   │
+│ │ 2026-04-22 · Knock → No answer                 │   │
+│ └────────────────────────────────────────────────┘   │
+│   [↺ Reset layout]                                   │
+│                                                      │
+│ ╔════════════════════════════════════════════════╗   │  ← sticky action bar (non-draggable)
+│ ║  [📄 Capture Bill]      [☀ Build My Solar]    ║   │
+│ ║  [➕ Route]  [▶ Knock]  [🖨 Doorcard]  [💬]  ║   │
+│ ╚════════════════════════════════════════════════╝   │
+├──────────────────────────────────────────────────────┤
+│ 🏠 🏘 🗺 ☀ 📊 ⚙                                      │
+└──────────────────────────────────────────────────────┘
+
+TABLET / DESKTOP (2-column layout)
+┌────────────────────────────────────────────────────────────────────────────────┐
+│ ← 142 Maple St                                          [📌] [🔗] [✕]         │
+│ Gate City, VA 24251                                                            │
+│ ────────────────────────────────────────────────────────────────────────────   │
+│ KNOCK 92  ● HOA green  ★ Bill linked  ·  $1,620/yr · 8.1y payback · 4.8h sun  │
+│ ────────────────────────────────────────────────────────────────────────────   │
+│ LEFT COLUMN (sortable cards)              │ RIGHT COLUMN (sticky summary panel) │
+│ ⋮⋮ Property owner              ▾         │ ╔══════════════════════════════╗   │
+│ ⋮⋮ Home facts                  ▾         │ ║  $1,620/yr savings           ║   │
+│ ⋮⋮ Area context                ▾         │ ║  Payback: 8.1 yrs w/ ITC    ║   │
+│ ⋮⋮ Energy & solar              ▾         │ ║  25-yr net: ~$21,400         ║   │
+│ ⋮⋮ Roof analysis               ▾         │ ╚══════════════════════════════╝   │
+│ ⋮⋮ Financial model             ▾         │ [📄 Capture Bill]                  │
+│ ⋮⋮ Incentives                  ▾         │ [☀ Build My Solar]                 │
+│ ⋮⋮ Neighborhood proof          ▾         │ ─────────────────────────────────   │
+│ ⋮⋮ Notes [3]                   ▾         │ [➕ Route]  [▶ Knock]               │
+│ ⋮⋮ Activity history            ▾         │ [🖨 Doorcard]  [💬 Pitch]          │
+│   [↺ Reset layout]                       │                                    │
+└────────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Property detail — every button, exhaustively:**
+
+| Location | Button | Action |
+|---|---|---|
+| Header | `←` Back | `navigate('/properties')` |
+| Header | `📌` Pin | Moves this property to top of Recently viewed in localStorage |
+| Header | `🔗` Share | Copies deep-link URL to clipboard; or opens share sheet on mobile |
+| Header (bottom-sheet only) | `✕` Close | Dismisses bottom sheet, stays on map |
+| Header (bottom-sheet only) | `→ Open full dashboard` | `navigate('/properties/:id')` |
+| Neighborhood proof card | `🗺 View heat map →` | `navigate('/territory?heatmap=1')` — Phase 6-E |
+| Financial model card | `⚙ Adjust assumptions` | Opens modal: ITC %, system cost $/W, annual rate escalator |
+| Notes card | `+ Text note` | Opens inline textarea (same NoteEditor component) |
+| Notes card | `🎤 Voice note` | Opens NoteEditor with Web Speech mic active |
+| Notes card | `✎` (per row) | Opens NoteEditor pre-filled with that note |
+| Sticky bar primary | `📄 Capture Bill` | `navigate('/bill?parcel_id=…&address=…')` |
+| Sticky bar primary | `☀ Build My Solar` | `navigate('/build')` OR opens Build My Solar modal if a property is pre-selected |
+| Sticky bar secondary | `➕ Route` | Calls `addToRoute(parcel)` from `route.ts`. Toggles to `[− Route]` when already in list |
+| Sticky bar secondary | `▶ Knock` | Opens disposition picker inline above the bar |
+| Sticky bar secondary | `🖨 Doorcard` | Calls `doorcard-pdf/` edge function; opens PDF in new tab |
+| Sticky bar secondary | `💬 Pitch` | Opens pitch scripts modal (same modal as Home) |
+
+**Property detail — data sources:**
+
+| Card | Source | Skeleton? | Error fallback |
+|---|---|---|---|
+| Header | `parcel` table | N/A | "Property not found" |
+| Property owner | `parcel` table (`owner_name_redacted`, `owner_occupied`, `year_built`, `assessed_value_usd`) | Yes | Section hidden |
+| Home facts | `parcel` table | Yes | Section hidden |
+| Area context | `census-fetch` edge fn | Yes | "Census data unavailable" |
+| Energy & solar | `pvwatts-fetch` + `utility_rate_observation` + `bill_capture` | Yes | EIA fallback + state avg |
+| Roof analysis | `solar-rooftop` edge fn (OSM fallback) | Yes | "Roof data unavailable" |
+| Financial model | Computed from above fields | Yes | "Provide bill data for a real estimate" |
+| Incentives | `incentives-fetch` edge fn (DSIRE) | Yes | Hardcoded ITC + state fallback |
+| Neighborhood proof | `trigger_event` + `parcel` (nearby) | Yes | "No permit data on record" |
+| Notes | Dexie first → Supabase `parcel_note` | No (instant from Dexie) | Dexie-only |
+| Activity history | `door_event` | Yes | "No activity logged" |
+
+**File:** `apps/web/src/modules/properties/PropertyDetailRoute.tsx`
+**Reuses:** `apps/web/src/modules/territory/ParcelDetailSheet.tsx` (refactor: extract the section JSX into the page; sheet uses same sections in compact mode)
+
+---
+
+### Screen 5 — Walk session (`/properties/walk`)
+
+```
+PHONE                                          TABLET / DESKTOP
+┌────────────────────────────────────────┐     ┌───────────────────────────────────────────────────────────┐
+│ ← Walk session  ☀ 72°F · 4h 12m left  │     │ Walk session  ☀ 72°F · sunset 8:14 · 4h 12m daylight left│
+│ Progress: 1 / 8 done                   │     │ ┌─────────────────────────┬───────────────────────────────┐│
+├────────────────────────────────────────┤     │ │ ROUTE  (8 stops)         │ CURRENT STOP                  ││
+│ ▶ CURRENT TARGET                       │     │ │ 🔴 142 Maple  92  ◀now  │ 142 Maple St                  ││
+│ 142 Maple St, Gate City VA            │     │ │ 🟠 88 Oak     78        │ Knock score: 92 · HOA green ● ││
+│ Score 92 · South-facing               │     │ │ 🟡 14 Cherry  64        │ Built 1987 · 1,420 sqft       ││
+│ Built 1987 · 1,420 sqft              │     │ │ 🟢 7 Pine     58        │ S-facing · ★ Bill linked      ││
+│ ★ Bill linked · $1,620/yr savings    │     │ │ 🟢 33 Birch   55        │ $1,620/yr savings             ││
+│ ──────────────────────────────────── │     │ │ 🟢 22 Elm     52        │ [Open full dashboard →]       ││
+│ [Open full dashboard →]               │     │ │ 🟢 11 Aspen   50        │ ──────────────────────────────││
+│ ──────────────────────────────────── │     │ │ 🟢 5 Maple Ct 48        │ DISPOSITION                   ││
+│ DISPOSITION                           │     │ │                         │ ┌────────┬────────┬──────────┐ ││
+│ ┌──────────┬──────────┬──────────┐    │     │ │                         │ │No ans  │Soft no │ Hard no  │ ││
+│ │ No ans   │ Soft no  │ Hard no  │    │     │ │                         │ ├────────┼────────┼──────────┤ ││
+│ ├──────────┼──────────┼──────────┤    │     │ │                         │ │Callback│  Sit   │  Sale    │ ││
+│ │ Callback │   Sit    │  Sale    │    │     │ │                         │ └────────┴────────┴──────────┘ ││
+│ └──────────┴──────────┴──────────┘    │     │ │                         │ [📝 Quick note] [🎤 Voice]    ││
+│                                       │     │ │                         │ [▶ Next door]                 ││
+│ [📝 Quick note]   [🎤 Voice note]    │     │ └─────────────────────────┴───────────────────────────────┘│
+│ [▶ Next door →]                       │     └───────────────────────────────────────────────────────────┘
+├────────────────────────────────────────┤
+│ 🏠 🏘 🗺 ☀ 📊 ⚙                        │
+└────────────────────────────────────────┘
+```
+
+**Walk session state machine:**
+- `idle` → rep selects "Start Walk" from Home or Properties landing
+- `active` → displaying current target. All disposition buttons active.
+- `recording_note` → note textarea / voice mic open
+- `completed` → all stops worked; shows summary (total knocked, outcomes)
+
+**Disposition tap behavior:**
+1. Tap any disposition button → calls `recordDoorEvent(parcel_id, outcome, {gps, timestamp, weather_snapshot})`
+2. Outcome written to Dexie first (instant) → synced to Supabase via outbox
+3. Parcel row in route list shows status pill: ✓ done / ↩ callback / etc.
+4. Auto-advance: after 1.5s delay, moves to next unworked stop (can be overridden by tapping a row)
+
+**Quick note / voice:** same NoteEditor component used in property detail, linked to current stop's parcel_id.
+
+**File:** `apps/web/src/modules/properties/WalkRoute.tsx` (relocated from `walk/route.tsx`)
+
+---
+
+### Screen 6 — Map / Territory (`/territory`)
+
+```
+PHONE                                          TABLET / DESKTOP
+┌────────────────────────────────────────┐     ┌───────────────────────────────────────────────────────────┐
+│ Map                                    │     │ Map                                                       │
+│ 🏠 Home · 🏘 Prop · 🔍 · 🛰 · ⚙ Fltr │     │ 🏠 Home · 🏘 Properties · 🔍 Search · 🛰 Satellite · ⚙Fltr│
+├────────────────────────────────────────┤     ├───────────────────────────────────────────────────────────┤
+│ 🔍 Type address to jump to…            │     │ 🔍 Type address to jump to…               [Filters ▼]    │
+│ ──────────────────────────────────── │     │                                                           │
+│       ●●  ●●  ●      (score-tinted)  │     │      ●●●  ●●           ●●  ●●  ●  ●●●                     │
+│      ●  ●  ●●●       red=high        │     │     ● ● ● ● ●●●        ●● ●● ●●  ●● ●                     │
+│     ●●● ●●● ● ●      amber=lower     │     │      ● ●● ●●●  ●  ●●● ●●● ●   ●  ● ●                     │
+│      ● ●●  ● ●                       │     │     ● ●  ●● ●● ● ●  ● ●●●  ●  ● ●                         │
+│     ●●● ●●●  ●                       │     │                                                           │
+│                                      │     │ Gate City · 47 parcels in view · cold ●●●● hot score      │
+│ Gate City · 47 parcels               │     │ [☑ Heat map overlay]                                      │
+│ [☑ Heat map]                         │     │                                                           │
+│                                      │     │ ← Pin tap opens this bottom sheet:                        │
+│ ─── (pin tap → bottom sheet) ───     │     │  ┌─────────────────────────────────────────────────────┐  │
+│ ┌────────────────────────────────┐   │     │  │ 142 Maple St    [Open full dashboard →]    [✕]      │  │
+│ │ 142 Maple St                   │   │     │  │ Knock 92 · HOA green · South-facing                  │  │
+│ │ [Open full dashboard →]  [✕]  │   │     │  │ Built 1987 · $142k assessed                          │  │
+│ │ Score 92 · HOA green ●         │   │     │  │ $1,620/yr savings · 4.8 hrs/day sun                  │  │
+│ │ Built 1987 · 1,420 sqft        │   │     │  │ [📄 Capture Bill] [➕ Route] [▶ Knock]               │  │
+│ │ $1,620/yr est · 4.8 sun hrs    │   │     │  └─────────────────────────────────────────────────────┘  │
+│ │ [📄 Bill] [➕ Route] [▶ Knock] │   │     │                                                           │
+│ └────────────────────────────────┘   │     ├───────────────────────────────────────────────────────────┤
+├────────────────────────────────────────┤     │ 🏠 🏘 🗺 ☀ 📊 ⚙                                          │
+│ 🏠 🏘 🗺 ☀ 📊 ⚙                        │     └───────────────────────────────────────────────────────────┘
+└────────────────────────────────────────┘
+```
+
+**Map features (all current + additions):**
+- Score-tinted pins (red ≥80, orange ≥60, yellow ≥40, amber <40)
+- Satellite / OSM toggle (🛰)
+- Filter panel: score range slider, owner-occupied checkbox, has-bill-captured badge, in-route badge
+- **Heat map overlay** (Phase 6-E): MapLibre heatmap layer of `parcel.score` values
+- Address search: `AddressSearch` component, on result → `flyTo` + open bottom sheet
+- Pin tap → bottom sheet preview with `Open full dashboard →` link
+- Long-press on pin → quick summary tooltip without full sheet
+- Cluster pins at zoom < 12 (Phase 6.5)
+
+**File:** `apps/web/src/modules/territory/route.tsx` (existing — add sub-nav strip, add "Open full dashboard →" to sheet)
+
+---
+
+### Screen 7 — Bill capture (`/bill?parcel_id=&address=`)
+
+```
+PHONE                                          TABLET / DESKTOP
+┌────────────────────────────────────────┐     ┌──────────────────────────────────────────────────────────┐
+│ ← Capture bill                         │     │ ← Capture bill                                           │
+│ Linked to: 142 Maple St                │     │ Linked to: 142 Maple St, Gate City VA 24251              │
+├────────────────────────────────────────┤     ├─────────────────────────────┬────────────────────────────┤
+│ Select input mode:                     │     │ INPUT MODE                  │ PARSED / LIVE CROSSCHECK   │
+│ [📷 Photo] [📁 File] [✎ Manual]        │     │ [📷 Photo][📁 File][✎ Man]  │ Utility:  AEP              │
+│                                        │     │                             │ Total kWh: 1,140           │
+│ Selected: ✎ Manual entry               │     │ Utility:   [AEP__________]  │ Rate:     $0.142/kWh       │
+│ ──────────────────────────────────── │     │ Total kWh: [1140_________]  │ Total:    $162.13          │
+│ Utility:     [AEP__________]          │     │ Rate:      [0.142________]  │ Period:   Apr 12–May 11   │
+│ Total kWh:   [1140_________]          │     │ Total $:   [162.13_______]  │ ─────────────────────────  │
+│ Rate $/kWh:  [0.142________]          │     │ Period:    [Apr12–May11__]  │ Annualized: 13,680 kWh/yr │
+│ Total $:     [162.13_______]          │     │                             │ PVWatts est: 9,840 kWh/yr │
+│ Period:      [Apr 12–May 11]          │     │ [💾 Save to 142 Maple St]   │ → Est savings: ~$1,400/yr │
+│                                        │     │                             │ ⓘ No PII — addr-linked    │
+│ [💾 Save to 142 Maple St]             │     └─────────────────────────────┴────────────────────────────┘
+│ ⓘ No personal info stored.            │
+│   Only kWh, rate, dates linked to      │
+│   the property address.               │
+├────────────────────────────────────────┤
+│ 🏠 🏘 🗺 ☀ 📊 ⚙                        │
+└────────────────────────────────────────┘
+```
+
+**Bill capture — modes:**
+- **📷 Photo** — opens camera; on-device OCR (Tesseract.js) parses kWh + rate + dates; results pre-fill fields for confirmation
+- **📁 File** — file picker for a saved bill image; same OCR pipeline
+- **✎ Manual** — form fields only (current behavior)
+
+**Save behavior:** writes to `bill_capture` via Dexie outbox (instant) → Supabase sync. Navigates back to `/properties/:id` after save.
+
+**No parcel_id guard:** if visited without `?parcel_id=`, show a warning "Open a property first, then tap Capture Bill" with [Open Properties →] link.
+
+**File:** `apps/web/src/modules/bill/route.tsx` (existing — add the guard, no other changes)
+
+---
+
+### Screen 8 — Build My Solar (`/build`)
+
+```
+PHONE                                          TABLET / DESKTOP
+┌────────────────────────────────────────┐     ┌──────────────────────────────────────────────────────────┐
+│ Build My Solar                         │     │ Build My Solar                                           │
+│ 🏠 Home · 🏘 Properties                │     │ 🏠 Home · 🏘 Properties                                  │
+├────────────────────────────────────────┤     ├──────────────────────────────────────────────────────────┤
+│ ☀ Coming Soon                          │     │ ☀ Coming Soon                                            │
+│                                        │     │                                                          │
+│ Aerial roof imagery with panel layout, │     │   Aerial roof imagery with panel layout                  │
+│ exact system size, and per-panel       │     │   · Exact system size, per-panel production              │
+│ production estimates.                  │     │   · 3D rotate · Compare configurations                   │
+│                                        │     │   · Lock in system size and panel count                  │
+│ · 3D rotate                            │     │                                                          │
+│ · Compare configurations               │     │   Selling tool for the porch — show the homeowner        │
+│ · Per-panel production estimates       │     │   exactly what their roof will look like.                 │
+│                                        │     │                                                          │
+│ Powered by Google Solar API +          │     │   Powered by Google Solar API + satellite imagery         │
+│ satellite imagery (Google Solar API    │     │   (GOOGLE_SOLAR_API_KEY required — see TODO.md)          │
+│ key required — see TODO.md)            │     │                                                          │
+│                                        │     │   [Open builder for: 142 Maple St]  (disabled)          │
+│ [Open builder for current property]    │     │                                                          │
+│  (disabled — select a property first) │     ├──────────────────────────────────────────────────────────┤
+├────────────────────────────────────────┤     │ 🏠 🏘 🗺 ☀ 📊 ⚙                                          │
+│ 🏠 🏘 🗺 ☀ 📊 ⚙                        │     └──────────────────────────────────────────────────────────┘
+└────────────────────────────────────────┘
+```
+
+The "Open builder" button becomes active if a property was recently viewed (reads `localStorage["properties:recent"][0]`). Pre-populates with that parcel's details. When Google Solar API key is not set, shows the OSM-estimated values and a note "Upgrade to Google Solar API for exact roof segments."
+
+**File:** `apps/web/src/modules/build/route.tsx` (new)
+
+---
+
+### Screen 9 — Reports (`/reports`)
+
+```
+PHONE                                          TABLET / DESKTOP
+┌────────────────────────────────────────┐     ┌──────────────────────────────────────────────────────────┐
+│ Reports                                │     │ Reports                                                  │
+│ 🏠 Home · 🏘 Properties                │     │ 🏠 Home · 🏘 Properties                                  │
+├────────────────────────────────────────┤     ├──────────────────────────────────────────────────────────┤
+│ 📊 Coming Soon                         │     │ 📊 Coming Soon                                           │
+│                                        │     │                                                          │
+│ · Daily + weekly summaries             │     │   Daily and weekly summaries                             │
+│ · Conversion funnel by trigger reason  │     │   · Conversion funnel by trigger reason                  │
+│ · Objection analysis from notes        │     │   · Objection analysis from notes (Phase 7 AI)           │
+│ · Best-time-of-day patterns            │     │   · Best-time-of-day patterns                            │
+│ · Note search across properties        │     │   · Note search across all properties                    │
+│ · PDF / text / CSV export              │     │   · PDF / text / CSV export                              │
+│                                        │     │                                                          │
+│ [Generate today's summary] (disabled)  │     │   [Generate today's summary]   [Export this week]       │
+│                                        │     │   (both disabled — Phase 6-I)                           │
+├────────────────────────────────────────┤     ├──────────────────────────────────────────────────────────┤
+│ 🏠 🏘 🗺 ☀ 📊 ⚙                        │     │ 🏠 🏘 🗺 ☀ 📊 ⚙                                          │
+└────────────────────────────────────────┘     └──────────────────────────────────────────────────────────┘
+```
+
+**File:** `apps/web/src/modules/reports/route.tsx` (new)
+
+---
+
+### Screen 10 — About / Settings (`/about`)
+
+```
+PHONE                                          TABLET / DESKTOP
+┌────────────────────────────────────────┐     ┌──────────────────────────────────────────────────────────┐
+│ About                                  │     │ About                                                    │
+├────────────────────────────────────────┤     ├──────────────────────────────────────────────────────────┤
+│ Rep ID: poc-abc123 (POC mode)          │     │ Rep ID: poc-abc123  (POC mode — no auth)                 │
+│ Auth: One-tap guest entry              │     │ Auth: One-tap guest entry                                │
+│ [Sign out]                             │     │ [Sign out]                                               │
+│ ──────────────────────────────────── │     │ ────────────────────────────────────────────────────────  │
+│ Push notifications: [✔ enabled]        │     │ Push notifications: [✔ enabled]                          │
+│ Default area: Scott County, VA    ▾    │     │ Default area: Scott County, VA  ▾ (overrides GPS)        │
+│ Reset all dashboard layouts: [Reset]   │     │ Reset all dashboard layouts: [Reset all]                 │
+│ ──────────────────────────────────── │     │ ────────────────────────────────────────────────────────  │
+│ Version 0.6.5  ·  Build 8caa932        │     │ Version 0.6.5  ·  Build 8caa932                          │
+│ [Roadmap]  [Privacy]  [Support]        │     │ [Roadmap]  [Privacy]  [Support]                          │
+├────────────────────────────────────────┤     ├──────────────────────────────────────────────────────────┤
+│ 🏠 🏘 🗺 ☀ 📊 ⚙                        │     │ 🏠 🏘 🗺 ☀ 📊 ⚙                                          │
+└────────────────────────────────────────┘     └──────────────────────────────────────────────────────────┘
+```
+
+**File:** `apps/web/src/modules/settings/route.tsx` (existing — rename route alias to `/about`, add layout reset button)
+
+---
+
+### Advanced neighborhood data (Neighborhood proof card — full data list)
+
+These data points all live in the "Neighborhood proof" `<DashboardCard>` on the property detail board:
+
+| Data point | Source | Status |
+|---|---|---|
+| Solar permits within ¼ mi, last 30d | `trigger_event` table | ✅ wired |
+| Trend vs prior 30d (↑ ↓ →) | Derived from `trigger_event` | 🔲 build in Phase 6.5 |
+| Recent home sales nearby, median price | `trigger_event` (type='sale') | ✅ wired |
+| Solar adoption rate (% of nearby homes) | `parcel.has_existing_solar` count | 🔲 build in Phase 6.5 |
+| HOA status + ruling | `hoa_zone` table | ✅ wired |
+| Solar permits this year (annual) | `trigger_event` count YTD | 🔲 build in Phase 6.5 |
+| Avg system size of nearby installs (kW) | `trigger_event` metadata | 🔲 Phase 6.5 if data available |
+| `[🗺 View heat map →]` | Link to `/territory?heatmap=1` | Phase 6-E |
+| Neighborhood momentum signal (qualitative) | Claude API summary | Phase 7-A |
+| Best pitch angle for this block | Claude analysis | Phase 7-B |
+
+---
+
+### Files to create
+
+| Path | Purpose |
+|---|---|
+| `apps/web/src/components/DashboardCard.tsx` | Reorderable + collapsible card wrapper |
+| `apps/web/src/components/DashboardCardList.tsx` | `DndContext + SortableContext + DragOverlay` host |
+| `apps/web/src/hooks/useDashboardLayout.ts` | localStorage read/write for layout state |
+| `apps/web/src/modules/home/route.tsx` | Home dashboard (replaces today/route.tsx) |
+| `apps/web/src/modules/properties/route.tsx` | Properties landing page |
+| `apps/web/src/modules/properties/PropertyDetailRoute.tsx` | Full-page property detail |
+| `apps/web/src/modules/properties/WalkRoute.tsx` | Walk session (relocated) |
+| `apps/web/src/modules/properties/NotesRoute.tsx` | Notes browser stub |
+| `apps/web/src/modules/properties/SubNav.tsx` | Per-dashboard sub-nav strip component |
+| `apps/web/src/modules/build/route.tsx` | Build My Solar stub |
+| `apps/web/src/modules/reports/route.tsx` | Reports stub |
+| `supabase/functions/geo-reverse/index.ts` | Nominatim reverse geocode → county/state |
+
+### Files to modify
+
+| Path | Change |
+|---|---|
+| `apps/web/src/components/AppShell.tsx` | 5-tab → 6-tab nav; left rail on desktop ≥1024px |
+| `apps/web/src/App.tsx` | Add new routes; redirects for `/`, `/today`, `/walk`, `/settings` |
+| `apps/web/src/modules/today/route.tsx` | Convert to redirect → `/home` |
+| `apps/web/src/modules/territory/route.tsx` | Add sub-nav strip at top |
+| `apps/web/src/modules/territory/ParcelDetailSheet.tsx` | Add "Open full dashboard →" link |
+| `apps/web/src/modules/bill/route.tsx` | Add no-parcel-id guard |
+| `apps/web/src/modules/settings/route.tsx` | Route alias `/about`; add layout reset button |
+| `CLAUDE.md` | Add "Navigation hard rule: 6 tabs, never re-add Walk or Bill" |
+| `ROADMAP.md` | Add Phase 6.5 and Phase 8-D entries |
+
+### Files to delete
+
+| Path | Reason |
+|---|---|
+| `apps/web/src/modules/walk/route.tsx` | Content moved to `properties/WalkRoute.tsx` |
+
+### New npm package
+
+```sh
+pnpm add @dnd-kit/core @dnd-kit/sortable @dnd-kit/utilities
+```
+
+---
+
+### Bugs fixed in this phase
+
+1. **Daylight countdown** — `sunsetCountdown()` in `today/route.tsx` produces wrong values. Fix: detect whether `weather.sunset` is an ISO 8601 timestamp (has `T`) or a bare time string (`HH:MM`); if bare time, combine with today's local date. Add 60-second `setInterval` to refresh the countdown without user interaction.
+
+2. **Area Intelligence hardcoded county** — Replace `{ state_fips: "51", county_fips: "169" }` with a call to the new `geo-reverse/` edge function keyed on the rep's GPS coordinates (rounded to 3 decimal places for caching). Store result in `localStorage["dashboard:home:area-geocode"]` per `{lat,lon}` key. Quick-switch picker stores override in `localStorage["dashboard:home:area-override"]`.
+
+---
+
+### Roadmap additions
+
+- **Phase 6.5 — Nav restructure + draggable cards** (this work)
+- **Phase 6-E — Neighborhood heat map** (`has_existing_solar` + `score` heatmap layer on Map, linked from Neighborhood proof card)
+- **Phase 8-D — Per-profile dashboard layout sync** (Supabase `rep_dashboard_layout` table; sync order/collapsed on login)
+- **Phase 9 — Calendar OAuth** (Google + Outlook + Apple, unlocks walk-window recommendations around appointments)
+
+---
+
+### Verification checklist
+
+1. `cd apps/web && npx tsc --noEmit` → zero errors
+2. `cd apps/web && npx eslint src --max-warnings=0` → zero warnings
+3. `cd apps/web && npx vite build` → succeeds
+4. On phone viewport (360px):
+   - Bottom nav shows 6 tabs: Home / Properties / Map / Build / Reports / About
+   - Home: weather header non-draggable; all other cards drag + collapse; layout persists after reload
+   - Home: daylight countdown shows correct remaining time and updates every 60s
+   - Home: Area Intel label auto-detects county from GPS; quick-switch picker works
+   - Properties landing: search finds parcels; walk plan shows route; recently viewed persists after reload
+   - Properties detail (`/properties/:id`): all 10 sections render; all buttons work; voice note works
+   - Walk session: disposition buttons write to Dexie; route advances; quick note works
+   - Map: sub-nav at top; pin tap opens bottom sheet; "Open full dashboard →" navigates correctly
+   - Build / Reports: stubs render
+   - About: layout reset button clears localStorage and reloads default card order
+5. On tablet viewport (768px): nav becomes left rail; Properties detail uses 2-column layout
+6. `curl` test on `geo-reverse/` edge function with Gate City VA coordinates → returns `{county: "Scott County", state: "VA", state_fips: "51", county_fips: "169"}`
+7. Confirm `CLAUDE.md` carries the 6-tab nav hard rule
 
 Phone ≈ 360px · Tablet ≈ 768px · Desktop ≈ 1200px. Two-pane on tablet, three-pane on desktop where real estate allows.
 

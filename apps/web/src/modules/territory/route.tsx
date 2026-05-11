@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import maplibregl, { Map as MlMap } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { fetchParcelsInBbox, pinsToGeoJSON } from "./repo.js";
@@ -81,6 +81,7 @@ function buildMapFilter(
 }
 
 export function TerritoryRoute() {
+  const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MlMap | null>(null);
   const [parcelCount, setParcelCount] = useState<number>(0);
@@ -383,7 +384,48 @@ export function TerritoryRoute() {
   const filtersActive = minScore > 0 || maxScore < 100 || hideExisting || ownerOccOnly;
 
   return (
-    <div className="relative h-full overflow-hidden">
+    <div className="flex h-full flex-col">
+      {/* Sub-nav */}
+      <div className="flex items-center gap-1 overflow-x-auto border-b bg-slate-100 px-3 py-1.5">
+        {[
+          { icon: "🏠", label: "Home", to: "/home" },
+          { icon: "🏘", label: "Properties", to: "/properties" },
+        ].map((item) => (
+          <button
+            key={item.label}
+            type="button"
+            onClick={() => navigate(item.to)}
+            className="flex shrink-0 items-center gap-1 rounded-md px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-200"
+          >
+            <span>{item.icon}</span>
+            <span>{item.label}</span>
+          </button>
+        ))}
+        <button
+          type="button"
+          onClick={() => setIsSatellite((v) => !v)}
+          className={[
+            "flex shrink-0 items-center gap-1 rounded-md px-3 py-1 text-xs font-medium",
+            isSatellite ? "bg-slate-700 text-white" : "text-slate-600 hover:bg-slate-200",
+          ].join(" ")}
+        >
+          <span>🛰</span>
+          <span>Satellite</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setFilterOpen((v) => !v)}
+          className={[
+            "flex shrink-0 items-center gap-1 rounded-md px-3 py-1 text-xs font-medium",
+            filtersActive ? "bg-amber-500 text-white" : "text-slate-600 hover:bg-slate-200",
+          ].join(" ")}
+        >
+          <span>⚙</span>
+          <span>Filters{filtersActive ? " ●" : ""}</span>
+        </button>
+      </div>
+
+      <div className="relative flex-1 overflow-hidden">
       {/* Full-screen map */}
       <div ref={containerRef} className="absolute inset-0" />
 
@@ -514,6 +556,7 @@ export function TerritoryRoute() {
       </div>
 
       <ParcelDetailSheet parcel={selected} onClose={() => setSelected(null)} />
+      </div>
     </div>
   );
 }

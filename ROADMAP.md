@@ -70,6 +70,28 @@ Field intelligence for door-to-door solar reps. One app. Every data source. Zero
 
 ---
 
+## Shipped — Phase 6.5: Navigation restructure + draggable dashboards (2026-05-10)
+
+Complete 6-tab navigation overhaul and draggable dashboard framework.
+
+| Item | Description | Status |
+|------|-------------|--------|
+| 6.5-A | 6-tab bottom nav: Home / Properties / Map / Build / Reports / About | ✅ Shipped |
+| 6.5-B | Desktop left-rail sidebar at ≥1024px | ✅ Shipped |
+| 6.5-C | `<DashboardCard>` — drag-to-reorder + collapsible + localStorage persistence | ✅ Shipped |
+| 6.5-D | Home dashboard — 7 draggable sections (forecast, walk window, calendar, planning, area intel, quick actions, pitch) | ✅ Shipped |
+| 6.5-E | Home daylight countdown fix — handles bare `HH:MM` time format from NWS | ✅ Shipped |
+| 6.5-F | Home Area Intelligence — GPS → `geo-reverse` edge fn → dynamic county/state (was hardcoded Scott County VA) | ✅ Shipped |
+| 6.5-G | Properties landing — search + today's walk plan + recently viewed (all draggable) | ✅ Shipped |
+| 6.5-H | `/properties/:id` — full-page property detail (uses ParcelDetailSheet in asPage mode) | ✅ Shipped |
+| 6.5-I | Map sub-nav — Home / Properties / Satellite / Filters quick-access strip | ✅ Shipped |
+| 6.5-J | Property detail bottom sheet — "Open full dashboard →" link added | ✅ Shipped |
+| 6.5-K | Build My Solar stub — `/build` coming-soon screen | ✅ Shipped |
+| 6.5-L | Reports stub — `/reports` coming-soon screen | ✅ Shipped |
+| 6.5-M | `geo-reverse` Supabase Edge Function — Nominatim OSM reverse geocode → county/state/FIPS | ✅ Shipped |
+
+---
+
 ## In progress — Phase 6: Property Dashboard & Data Integration
 
 The property dashboard is the heart of the app. This sprint completes it.
@@ -111,6 +133,7 @@ Once Phase 6 is complete and there's 4+ weeks of rep data, these AI features act
 | 8-A | **Cross-device session state** — log in on phone, pick up on iPad or laptop with all data intact. Door events, notes, leads, and today's walk list follow you across devices via Supabase sync. |
 | 8-B | **Rep profile** — display name, territory home, device list ("last seen: iPhone, 2h ago"), score threshold preference |
 | 8-C | **Data export** — CSV/Excel for your pipeline, JSON for CRM import, PDF report, or full SQL dump. Export only your own data; no PII leaves the app. |
+| 8-D | **Per-profile dashboard layout sync** — new `rep_dashboard_layout` table (`rep_id`, `dashboard`, `order jsonb`, `collapsed jsonb`). Replaces localStorage layout persistence post-auth. Dashboard cards ordered on one device = ordered everywhere. |
 
 ---
 

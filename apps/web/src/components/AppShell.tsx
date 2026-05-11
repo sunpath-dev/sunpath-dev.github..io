@@ -2,11 +2,20 @@ import { NavLink, Outlet } from "react-router-dom";
 
 const tabs = [
   {
-    to: "/today",
-    label: "Today",
+    to: "/home",
+    label: "Home",
     icon: (
       <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+      </svg>
+    ),
+  },
+  {
+    to: "/properties",
+    label: "Properties",
+    icon: (
+      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 21v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21m0 0h4.5V3.545M12.75 21h7.5V10.75M2.25 21h1.5m18 0h-18M2.25 9l4.5-1.636M18.75 3l-1.5.545m0 6.205l3 1m1.5.5l-1.5-.5M6.75 7.364V3h-3v18m3-13.636l10.5-3.819" />
       </svg>
     ),
   },
@@ -20,25 +29,25 @@ const tabs = [
     ),
   },
   {
-    to: "/walk",
-    label: "Walk",
+    to: "/build",
+    label: "Build",
     icon: (
       <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
       </svg>
     ),
   },
   {
-    to: "/bill",
-    label: "Bill",
+    to: "/reports",
+    label: "Reports",
     icon: (
       <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
       </svg>
     ),
   },
   {
-    to: "/settings",
+    to: "/about",
     label: "About",
     icon: (
       <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
@@ -48,31 +57,62 @@ const tabs = [
   },
 ];
 
+function TabItem({ to, label, icon }: typeof tabs[number]) {
+  return (
+    <NavLink
+      to={to}
+      className={({ isActive }) =>
+        [
+          "flex flex-col items-center justify-center gap-0.5 text-xs font-medium",
+          isActive ? "text-amber-600" : "text-slate-400 hover:text-slate-700",
+        ].join(" ")
+      }
+    >
+      {icon}
+      <span>{label}</span>
+    </NavLink>
+  );
+}
+
 export function AppShell() {
   return (
-    <div className="flex h-dvh flex-col">
-      <main className="flex-1 overflow-hidden">
-        <Outlet />
-      </main>
-      <nav className="grid grid-cols-5 border-t bg-white safe-area-bottom">
+    <div className="flex h-dvh overflow-hidden">
+      {/* Desktop left rail — visible at lg+ */}
+      <nav className="hidden lg:flex lg:w-20 lg:flex-col lg:items-center lg:gap-1 lg:border-r lg:bg-white lg:py-4">
         {tabs.map((t) => (
           <NavLink
             key={t.to}
             to={t.to}
             className={({ isActive }) =>
               [
-                "flex h-14 flex-col items-center justify-center gap-0.5 text-xs font-medium",
+                "flex w-full flex-col items-center gap-1 rounded-lg px-2 py-3 text-xs font-medium transition-colors",
                 isActive
-                  ? "text-amber-600"
-                  : "text-slate-400 hover:text-slate-700",
+                  ? "bg-amber-50 text-amber-600"
+                  : "text-slate-400 hover:bg-slate-50 hover:text-slate-700",
               ].join(" ")
             }
           >
             {t.icon}
-            {t.label}
+            <span>{t.label}</span>
           </NavLink>
         ))}
       </nav>
+
+      {/* Main content */}
+      <div className="flex flex-1 flex-col overflow-hidden">
+        <main className="flex-1 overflow-hidden">
+          <Outlet />
+        </main>
+
+        {/* Mobile bottom nav — hidden at lg+ */}
+        <nav className="grid grid-cols-6 border-t bg-white safe-area-bottom lg:hidden">
+          {tabs.map((t) => (
+            <div key={t.to} className="flex h-14 items-center justify-center">
+              <TabItem {...t} />
+            </div>
+          ))}
+        </nav>
+      </div>
     </div>
   );
 }

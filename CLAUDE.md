@@ -45,6 +45,16 @@ docs/                 # DESIGN.md (v1.3) and ADRs
 - `@shared/` → `packages/shared/src`
 - `@ui/` → `packages/ui/src`
 
+## Primary screens / navigation structure (locked 2026-05-10)
+
+Bottom nav has exactly **6 tabs in this order**: `Home | Properties | Map | Build | Reports | About`
+
+- **Walk** is a sub-tool inside Properties (`/properties/walk`). **Never re-add Walk as a primary nav tab.**
+- **Bill capture** is a button inside the property detail sheet. **Never re-add Bill as a primary nav tab.**
+- Every dashboard section must wrap in `<DashboardCard>` — drag-to-reorder + collapsible, state in localStorage.
+- Route `/properties/:id` renders the full property detail page (via `territory/PropertyDetailRoute.tsx`).
+- The `geo-reverse` edge function provides GPS → county/state; never hardcode FIPS codes in UI components.
+
 ## Hard rules (do not violate)
 
 1. **Module isolation** — `modules/X/` may only import from `packages/shared` and `packages/ui`. Never `modules/Y/`. Cross-module comms = DB events. Enforced via ESLint `no-restricted-imports`.

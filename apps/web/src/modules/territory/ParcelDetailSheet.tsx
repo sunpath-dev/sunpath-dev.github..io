@@ -127,6 +127,7 @@ export interface ParcelDetail {
 interface Props {
   parcel: ParcelDetail | null;
   onClose: () => void;
+  asPage?: boolean;
 }
 
 const PITCH_SCRIPTS: { title: string; body: string }[] = [
@@ -176,7 +177,7 @@ interface NoteRow {
   created_at: string;
 }
 
-export function ParcelDetailSheet({ parcel, onClose }: Props) {
+export function ParcelDetailSheet({ parcel, onClose, asPage = false }: Props) {
   const { session } = useAuth();
   const navigate = useNavigate();
 
@@ -499,7 +500,11 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
     <>
       {/* Sheet: flex column so sticky footer doesn't scroll away */}
       <div
-        className="absolute inset-x-0 bottom-0 z-10 flex max-h-[85vh] flex-col rounded-t-2xl border-t bg-white shadow-2xl"
+        className={
+          asPage
+            ? "flex h-full flex-col bg-white"
+            : "absolute inset-x-0 bottom-0 z-10 flex max-h-[85vh] flex-col rounded-t-2xl border-t bg-white shadow-2xl"
+        }
         role="dialog"
         aria-label="Parcel detail"
       >
@@ -544,13 +549,24 @@ export function ParcelDetailSheet({ parcel, onClose }: Props) {
                 )}
               </div>
             </div>
-            <button
-              onClick={onClose}
-              className="shrink-0 rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-              aria-label="Close"
-            >
-              ✕
-            </button>
+            <div className="flex shrink-0 flex-col items-end gap-1">
+              {!asPage && (
+                <button
+                  type="button"
+                  onClick={() => navigate(`/properties/${parcel.id}`)}
+                  className="text-xs font-medium text-amber-600 hover:text-amber-700 hover:underline"
+                >
+                  Open full dashboard →
+                </button>
+              )}
+              <button
+                onClick={onClose}
+                className="rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
           </div>
 
           {/* HERO STATS STRIP */}

@@ -7,17 +7,26 @@ import { useAuth } from "@/lib/auth.js";
 import { startSyncEngine } from "@/lib/sync.js";
 
 // Lazy-load module routes so MapLibre and friends don't bloat the entry chunk.
-const TodayRoute = lazy(() =>
-  import("@/modules/today/index.js").then((m) => ({ default: m.TodayRoute })),
+const HomeRoute = lazy(() =>
+  import("@/modules/home/index.js").then((m) => ({ default: m.HomeRoute })),
 );
 const TerritoryRoute = lazy(() =>
   import("@/modules/territory/index.js").then((m) => ({ default: m.TerritoryRoute })),
 );
+const PropertiesRoute = lazy(() =>
+  import("@/modules/properties/index.js").then((m) => ({ default: m.PropertiesRoute })),
+);
+const PropertyDetailRoute = lazy(() =>
+  import("@/modules/territory/index.js").then((m) => ({ default: m.PropertyDetailRoute })),
+);
 const WalkRoute = lazy(() =>
   import("@/modules/walk/index.js").then((m) => ({ default: m.WalkRoute })),
 );
-const PipelineRoute = lazy(() =>
-  import("@/modules/pipeline/index.js").then((m) => ({ default: m.PipelineRoute })),
+const BuildRoute = lazy(() =>
+  import("@/modules/build/index.js").then((m) => ({ default: m.BuildRoute })),
+);
+const ReportsRoute = lazy(() =>
+  import("@/modules/reports/index.js").then((m) => ({ default: m.ReportsRoute })),
 );
 const SettingsRoute = lazy(() =>
   import("@/modules/settings/index.js").then((m) => ({ default: m.SettingsRoute })),
@@ -86,17 +95,28 @@ export default function App() {
     <Suspense fallback={<RouteFallback />}>
       <Routes>
         <Route element={<AppShell />}>
-          <Route path="/" element={<Navigate to="/today" replace />} />
-          <Route path="/today" element={<TodayRoute />} />
+          {/* Redirects — old routes and root */}
+          <Route path="/" element={<Navigate to="/home" replace />} />
+          <Route path="/today" element={<Navigate to="/home" replace />} />
+          <Route path="/walk" element={<Navigate to="/properties/walk" replace />} />
+          <Route path="/settings" element={<Navigate to="/about" replace />} />
+
+          {/* Primary tabs */}
+          <Route path="/home" element={<HomeRoute />} />
+          <Route path="/properties" element={<PropertiesRoute />} />
+          <Route path="/properties/walk" element={<WalkRoute />} />
+          <Route path="/properties/:id" element={<PropertyDetailRoute />} />
           <Route path="/territory" element={<TerritoryRoute />} />
-          <Route path="/walk" element={<WalkRoute />} />
-          <Route path="/pipeline" element={<PipelineRoute />} />
+          <Route path="/build" element={<BuildRoute />} />
+          <Route path="/reports" element={<ReportsRoute />} />
+          <Route path="/about" element={<SettingsRoute />} />
+
+          {/* Sub-routes (no primary nav highlight needed) */}
           <Route path="/bill" element={<BillCaptureRoute />} />
-          <Route path="/settings" element={<SettingsRoute />} />
-          <Route path="*" element={<Navigate to="/today" replace />} />
+
+          <Route path="*" element={<Navigate to="/home" replace />} />
         </Route>
       </Routes>
     </Suspense>
   );
 }
-

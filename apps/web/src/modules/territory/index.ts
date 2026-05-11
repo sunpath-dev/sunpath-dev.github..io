@@ -2,3 +2,4 @@
 // Public surface only. Internals stay below this directory.
 
 export { TerritoryRoute } from "./route.js";
+export { PropertyDetailRoute } from "./PropertyDetailRoute.js";
