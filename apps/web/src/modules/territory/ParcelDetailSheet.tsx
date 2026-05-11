@@ -370,7 +370,15 @@ export function ParcelDetailSheet({ parcel, onClose, asPage = false }: Props) {
           .order("created_at", { ascending: false })
           .limit(50);
         if (cancelled || !Array.isArray(data)) return;
-        setNotes((data as NoteRow[]).slice().reverse());
+        const serverNotes = (data as NoteRow[]).slice().reverse();
+        setNotes((prev) => {
+          if (serverNotes.length === 0) return prev;
+          const serverIds = new Set(serverNotes.map((n) => n.id));
+          const localOnly = prev.filter((n) => !serverIds.has(n.id));
+          return [...serverNotes, ...localOnly].sort((a, b) =>
+            a.created_at.localeCompare(b.created_at),
+          );
+        });
       })();
     }
 
@@ -945,7 +953,7 @@ export function ParcelDetailSheet({ parcel, onClose, asPage = false }: Props) {
         ) : null}
 
         {/* PROPERTY NOTES */}
-        <section className="mb-2 rounded-xl border bg-white p-3">
+        <section id="notes-section" className="mb-2 rounded-xl border bg-white p-3">
           <div className="mb-2 flex items-center justify-between">
             <h3 className="text-sm font-semibold text-slate-900">
               Notes

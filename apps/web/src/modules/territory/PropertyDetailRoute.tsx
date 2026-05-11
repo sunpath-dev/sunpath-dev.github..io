@@ -21,6 +21,17 @@ function saveRecent(id: string, address: string) {
   }
 }
 
+function getStoredAddress(id: string): string | null {
+  try {
+    const raw = localStorage.getItem(RECENT_KEY);
+    if (!raw) return null;
+    const items = JSON.parse(raw) as { id: string; address: string }[];
+    return items.find((r) => r.id === id)?.address ?? null;
+  } catch {
+    return null;
+  }
+}
+
 type ParcelState =
   | { status: "loading" }
   | { status: "ok"; parcel: ParcelDetail }
@@ -43,7 +54,8 @@ export function PropertyDetailRoute() {
       const parts = id.slice(4).split(",");
       const lat = parseFloat(parts[0] ?? "0");
       const lon = parseFloat(parts[1] ?? "0");
-      const address = addressParam ?? `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+      // Use URL param → previously saved address → coordinate fallback
+      const address = addressParam ?? getStoredAddress(id) ?? `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
       const parcel: ParcelDetail = { id, address, state: "", lat, lon, score: -1, existing: false };
       startTransition(() => setState({ status: "ok", parcel }));
       saveRecent(id, address);
@@ -102,14 +114,24 @@ export function PropertyDetailRoute() {
     };
   }, [id, addressParam]);
 
+  const parcel = state.status === "ok" ? state.parcel : null;
+  const mapTo = parcel
+    ? `/territory?lat=${parcel.lat}&lon=${parcel.lon}&q=${encodeURIComponent(parcel.address)}`
+    : "/territory";
+
   return (
     <div className="flex flex-1 min-h-0 flex-col">
       <SubNav
         items={[
           { icon: "←", label: "Properties", to: "/properties" },
-          { icon: "🗺", label: "Map", to: "/territory" },
+          { icon: "🗺", label: "Map", to: mapTo },
           { icon: "🚶", label: "Walk", to: "/properties/walk" },
-          { icon: "📝", label: "Notes", disabled: true },
+          {
+            icon: "📝",
+            label: "Notes",
+            onClick: () =>
+              document.getElementById("notes-section")?.scrollIntoView({ behavior: "smooth" }),
+          },
         ]}
       />
 
