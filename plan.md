@@ -1526,6 +1526,41 @@ PHONE — Reports screen
 
 ---
 
+## Phase 6.8 — Admin Portal (✅ shipped 2026-05-11)
+
+Full-page `/admin` operator console. Accessible to `rep.role = 'admin'` only; non-admins redirect to `/home`. Designed for a single operator who needs system visibility without touching the Supabase dashboard.
+
+**Route:** `apps/web/src/modules/admin/route.tsx` — four-tab layout: Reps / Territory / System / Docs.
+
+**6.8-A — Reps tab**
+- All reps listed by status bucket (access requests → pending accounts → active reps → suspended)
+- Inline approve / suspend / reactivate buttons
+- Click any rep row → Edit modal: display name, role, status; send password reset email
+- Send invite link: email + role dropdown; invite history with revoke
+- Demo-mode banner when signed in via POC bypass (no real auth session)
+
+**6.8-B — Territory tab**
+- Cascading State → County dropdowns; Virginia has 15 SW VA counties pre-loaded
+- "Run ingest" button posts `{ state_fips, county_fips }` to `ingest-parcels` edge function — no GitHub Actions required for incremental syncs (5,000 parcels per run; re-run for large counties)
+- Loaded counties table: parcel count, owner-occupied %, solar count, last ingest, last source update; Re-score trigger per county
+- GitHub Actions link retained for full initial county loads (no 60s wall-clock limit)
+- `ingest-parcels` edge function generalized to accept any state/county FIPS via POST body (defaults to 51/169 Scott VA)
+
+**6.8-C — System tab**
+- Edge function status panel: 25 deployed functions listed; link to Supabase edge function logs
+- API connectivity: "Run all checks" + individual "Check" per row; auth headers injected so Supabase REST and edge fn checks don't false-negative on CORS/401
+- Audit log: last 100 events, event-type filter dropdown, Export CSV
+
+**6.8-D — Docs tab**
+- Curated links organized into groups: Architecture & Planning, Data & APIs, Supabase Dashboard, GitHub
+- No external hosting — all links open GitHub/Supabase in a new tab
+
+**Implementation notes:**
+- `SUPABASE_URL` and `SUPABASE_ANON_KEY` use hardcoded fallbacks — `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` are not set as GitHub Actions secrets; the live PWA always has the correct project URL via the fallback
+- Audit log requires migration 0030 (`admin_audit_log_read` policy + `admin_county_summary` view); without it the audit tab shows a "Run migration 0030" hint
+
+---
+
 ## Phase 7 — Intelligence Layer (AI + pattern recognition, post-Phase 6)
 
 Goal: the app learns from the rep's own data and tells them what to do differently. Turns activity history into a feedback loop.

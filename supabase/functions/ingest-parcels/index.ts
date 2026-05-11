@@ -102,7 +102,20 @@ interface ParcelRow {
   has_existing_solar: boolean;
 }
 
-function normalize(f: ArcGisFeature): ParcelRow | null {
+// Maps state FIPS → 2-letter abbreviation (expand as new states are added)
+const FIPS_STATE: Record<string, string> = { "51": "VA" };
+
+interface RequestBody {
+  state_fips?: string;
+  county_fips?: string;
+}
+
+function normalize(
+  f: ArcGisFeature,
+  stateFips: string,
+  countyFips: string,
+  stateAbbrev: string,
+): ParcelRow | null {
   const a = f.attributes ?? {};
   const externalId = pick<string | number>(a, FIELDS.pin);
   if (!externalId) return null;
@@ -119,11 +132,11 @@ function normalize(f: ArcGisFeature): ParcelRow | null {
   const assessed = pick<number>(a, FIELDS.assessed);
   return {
     external_id: String(externalId),
-    state_fips: "51",
-    county_fips: "169",
+    state_fips: stateFips,
+    county_fips: countyFips,
     address_line1: String(address).trim(),
-    city: String(pick<string>(a, FIELDS.city) ?? "Gate City").trim(),
-    state: "VA",
+    city: String(pick<string>(a, FIELDS.city) ?? "").trim(),
+    state: stateAbbrev,
     postal_code: zip,
     centroid: `SRID=4326;POINT(${centroid[0]} ${centroid[1]})`,
     year_built:
@@ -175,8 +188,15 @@ Deno.serve(async (req: Request) => {
     );
   }
 
+  // Parse optional county targeting from request body
+  let body: RequestBody = {};
+  try { body = await req.json() as RequestBody; } catch { /* empty body is fine */ }
+  const stateFips = (body.state_fips ?? "51").replace(/\D/g, "").padStart(2, "0").slice(0, 2);
+  const countyFips = (body.county_fips ?? "169").replace(/\D/g, "").padStart(3, "0").slice(0, 3);
+  const stateAbbrev = FIPS_STATE[stateFips] ?? "VA";
+  const fipsFull = `${stateFips}${countyFips}`;
   const endpoint = Deno.env.get("VGIN_PARCELS_URL") ?? DEFAULT_VGIN_URL;
-  const where = "FIPS = '51169' OR CountyFIPS = '51169'";
+  const where = `FIPS = '${fipsFull}' OR CountyFIPS = '${countyFips}'`;
 
   const headers = {
     apikey: serviceKey,
@@ -201,7 +221,7 @@ Deno.serve(async (req: Request) => {
     seen += features.length;
     const rows: ParcelRow[] = [];
     for (const f of features) {
-      const r = normalize(f);
+      const r = normalize(f, stateFips, countyFips, stateAbbrev);
       if (r) rows.push(r);
     }
     if (rows.length > 0) {
@@ -231,7 +251,7 @@ Deno.serve(async (req: Request) => {
   }
 
   return Response.json(
-    { ok: true, seen, upserted, capped: seen >= MAX_FEATURES },
+    { ok: true, state_fips: stateFips, county_fips: countyFips, seen, upserted, capped: seen >= MAX_FEATURES },
     { headers: CORS_HEADERS },
   );
 });

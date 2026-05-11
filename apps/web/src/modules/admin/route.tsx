@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase.js";
 import { useAuth } from "@/lib/auth.js";
 
 const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL as string | undefined) || "https://sclisaylpwnffkkyepow.supabase.co";
+const SUPABASE_ANON_KEY = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined) || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNjbGlzYXlscHduZmZra3llcG93Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgzOTM5NDAsImV4cCI6MjA5Mzk2OTk0MH0.UauOnRMirTmgvwfp0445noEC-du0_hEXjyEQ8lHNuBY";
 const REPO = "https://github.com/sunpath-dev/sunpath-dev.github.io";
 const SUPABASE_DASH = "https://supabase.com/dashboard/project/sclisaylpwnffkkyepow";
 
@@ -455,45 +456,76 @@ function RepsTab({
 // Territory Tab
 // ---------------------------------------------------------------------------
 
-const ADAPTERS = [
-  { value: "scott-va", label: "Scott County, VA", stateFips: "51", countyFips: "169", state: "VA" },
-  { value: "russell-va", label: "Russell County, VA", stateFips: "51", countyFips: "167", state: "VA" },
-  { value: "washington-va", label: "Washington County, VA", stateFips: "51", countyFips: "195", state: "VA" },
-  { value: "tazewell-va", label: "Tazewell County, VA", stateFips: "51", countyFips: "185", state: "VA" },
-  { value: "buchanan-va", label: "Buchanan County, VA", stateFips: "51", countyFips: "027", state: "VA" },
-  { value: "lee-va", label: "Lee County, VA", stateFips: "51", countyFips: "105", state: "VA" },
-] as const;
+interface CountyDef {
+  countyFips: string;
+  name: string;
+}
 
-const COUNTY_NAMES: Record<string, string> = {
-  "51169": "Scott County",
-  "51167": "Russell County",
-  "51195": "Washington County",
-  "51185": "Tazewell County",
-  "51027": "Buchanan County",
-  "51105": "Lee County",
-};
+interface StateDef {
+  fips: string;
+  abbrev: string;
+  label: string;
+  counties: CountyDef[];
+}
 
-type AdapterValue = typeof ADAPTERS[number]["value"];
+// Counties listed roughly north→south within each state. Expand as needed.
+const STATES: StateDef[] = [
+  {
+    fips: "51", abbrev: "VA", label: "Virginia",
+    counties: [
+      { countyFips: "027", name: "Buchanan County" },
+      { countyFips: "051", name: "Dickenson County" },
+      { countyFips: "071", name: "Giles County" },
+      { countyFips: "077", name: "Grayson County" },
+      { countyFips: "105", name: "Lee County" },
+      { countyFips: "121", name: "Montgomery County" },
+      { countyFips: "155", name: "Pulaski County" },
+      { countyFips: "161", name: "Roanoke County" },
+      { countyFips: "167", name: "Russell County" },
+      { countyFips: "169", name: "Scott County" },
+      { countyFips: "173", name: "Smyth County" },
+      { countyFips: "185", name: "Tazewell County" },
+      { countyFips: "191", name: "Washington County" },
+      { countyFips: "195", name: "Wise County" },
+      { countyFips: "197", name: "Wythe County" },
+    ],
+  },
+];
+
+const COUNTY_LABEL: Record<string, string> = Object.fromEntries(
+  STATES.flatMap((s) => s.counties.map((c) => [`${s.fips}${c.countyFips}`, c.name]))
+);
 
 function TerritoryTab() {
-  const [counties, setCounties] = useState<CountyRow[]>([]);
+  const [loadedCounties, setLoadedCounties] = useState<CountyRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [rescoring, setRescoring] = useState<string | null>(null);
   const [rescoreMsg, setRescoreMsg] = useState<string | null>(null);
-  const [ingestAdapter, setIngestAdapter] = useState<AdapterValue>("scott-va");
+  const [selectedStateFips, setSelectedStateFips] = useState("51");
+  const [selectedCountyFips, setSelectedCountyFips] = useState("169");
   const [ingesting, setIngesting] = useState(false);
   const [ingestResult, setIngestResult] = useState<string | null>(null);
 
   useEffect(() => {
     void (async () => {
       const { data } = await supabase.from("admin_county_summary").select("*");
-      setCounties((data as CountyRow[] | null) ?? []);
+      setLoadedCounties((data as CountyRow[] | null) ?? []);
       setLoading(false);
     })();
   }, []);
 
+  const stateDef = STATES.find((s) => s.fips === selectedStateFips) ?? STATES[0]!;
+
+  const handleStateChange = (newStateFips: string) => {
+    setSelectedStateFips(newStateFips);
+    const newState = STATES.find((s) => s.fips === newStateFips);
+    if (newState && newState.counties.length > 0) {
+      setSelectedCountyFips(newState.counties[0]!.countyFips);
+    }
+    setIngestResult(null);
+  };
+
   const triggerRescore = async (stateFips: string, countyFips: string) => {
-    if (!SUPABASE_URL) return;
     const key = `${stateFips}-${countyFips}`;
     setRescoring(key);
     setRescoreMsg(null);
@@ -504,14 +536,11 @@ function TerritoryTab() {
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({ state_fips: stateFips, county_fips: countyFips }),
     });
-    setRescoreMsg(res.ok ? `Re-score triggered for ${stateFips}-${countyFips}` : `Failed (${res.status})`);
+    setRescoreMsg(res.ok ? `Re-score triggered for ${countyLabel(stateFips, countyFips)}` : `Failed (${res.status})`);
     setRescoring(null);
   };
 
   const runIngest = async () => {
-    if (!SUPABASE_URL) return;
-    const adapter = ADAPTERS.find((a) => a.value === ingestAdapter);
-    if (!adapter) return;
     setIngesting(true);
     setIngestResult(null);
     const token = (await supabase.auth.getSession()).data.session?.access_token;
@@ -525,12 +554,12 @@ function TerritoryTab() {
       const res = await fetch(`${SUPABASE_URL}/functions/v1/ingest-parcels`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ state_fips: selectedStateFips, county_fips: selectedCountyFips }),
       });
-      const json = (await res.json()) as { ok?: boolean; seen?: number; upserted?: number; capped?: boolean; error?: string; details?: unknown };
+      const json = (await res.json()) as { ok?: boolean; seen?: number; upserted?: number; capped?: boolean; error?: string };
       const elapsed = Math.round((Date.now() - t0) / 1000);
       if (res.ok && json.ok) {
-        setIngestResult(`Done in ${elapsed}s — seen ${json.seen ?? 0}, upserted ${json.upserted ?? 0}${json.capped ? " (hit 5k cap, run again for more)" : ""}.`);
+        setIngestResult(`Done in ${elapsed}s — seen ${json.seen ?? 0} parcels, upserted ${json.upserted ?? 0}${json.capped ? " (hit 5k cap — run again to continue)" : ""}.`);
       } else {
         setIngestResult(`Failed (${res.status}): ${json.error ?? "unknown error"}`);
       }
@@ -538,16 +567,12 @@ function TerritoryTab() {
       setIngestResult(`Network error: ${err instanceof Error ? err.message : String(err)}`);
     }
     setIngesting(false);
-    // Reload county data
     const { data } = await supabase.from("admin_county_summary").select("*");
-    setCounties((data as CountyRow[] | null) ?? []);
+    setLoadedCounties((data as CountyRow[] | null) ?? []);
   };
 
-  const countyName = (stateFips: string, countyFips: string) =>
-    COUNTY_NAMES[`${stateFips}${countyFips}`] ?? `County ${countyFips}`;
-
-  const isScottVa = ingestAdapter === "scott-va";
-  const selectedAdapter = ADAPTERS.find((a) => a.value === ingestAdapter);
+  const countyLabel = (stateFips: string, countyFips: string) =>
+    COUNTY_LABEL[`${stateFips}${countyFips}`] ?? `County ${countyFips}`;
 
   return (
     <div className="space-y-4">
@@ -559,43 +584,45 @@ function TerritoryTab() {
       <section className="rounded-xl border bg-white shadow-sm overflow-hidden">
         <div className="px-4 py-3 border-b bg-slate-50">
           <h2 className="text-sm font-semibold text-slate-800">Run parcel ingest</h2>
-          <p className="text-xs text-slate-500 mt-0.5">Incremental sync from VGIN (up to 5,000 new/changed parcels per run). For a full initial load of a new county, use GitHub Actions manually.</p>
+          <p className="text-xs text-slate-500 mt-0.5">Incremental sync from VGIN ArcGIS (up to 5,000 parcels per run — re-run to continue a large county).</p>
         </div>
         <div className="px-4 py-4 space-y-3">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <div className="flex-1">
-              <label className="block text-xs font-medium text-slate-700 mb-1">County adapter</label>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">State</label>
               <select
-                value={ingestAdapter}
-                onChange={(e) => setIngestAdapter(e.target.value as AdapterValue)}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400"
+                value={selectedStateFips}
+                onChange={(e) => handleStateChange(e.target.value)}
+                className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400"
               >
-                {ADAPTERS.map((a) => (
-                  <option key={a.value} value={a.value}>{a.label}</option>
+                {STATES.map((s) => (
+                  <option key={s.fips} value={s.fips}>{s.label}</option>
                 ))}
               </select>
             </div>
-            <div className="sm:self-end">
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-slate-700 mb-1">County</label>
+              <select
+                value={selectedCountyFips}
+                onChange={(e) => { setSelectedCountyFips(e.target.value); setIngestResult(null); }}
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400"
+              >
+                {stateDef.counties.map((c) => (
+                  <option key={c.countyFips} value={c.countyFips}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
               <button
                 type="button"
-                disabled={ingesting || !isScottVa}
+                disabled={ingesting}
                 onClick={() => void runIngest()}
-                title={!isScottVa ? "Only Scott County adapter is deployed to edge functions. Other counties require GitHub Actions." : undefined}
-                className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-600 disabled:opacity-50 w-full sm:w-auto"
+                className="rounded-lg bg-amber-500 px-5 py-2 text-sm font-semibold text-white hover:bg-amber-600 disabled:opacity-50 whitespace-nowrap"
               >
-                {ingesting ? "Running…" : "Run incremental ingest"}
+                {ingesting ? "Running…" : "Run ingest"}
               </button>
             </div>
           </div>
-          {!isScottVa && (
-            <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-              Edge function only deployed for Scott County VA. To ingest {selectedAdapter?.label}, trigger the{" "}
-              <a href={`${REPO}/actions/workflows/ingest-parcels.yml`} target="_blank" rel="noopener noreferrer" className="text-amber-700 hover:underline">
-                ingest-parcels GitHub Actions workflow ↗
-              </a>{" "}
-              manually with adapter <code className="font-mono">{ingestAdapter}</code>.
-            </div>
-          )}
           {ingestResult && (
             <div className={`rounded-lg border px-3 py-2 text-sm font-medium ${ingestResult.startsWith("Error") || ingestResult.startsWith("Failed") || ingestResult.startsWith("Network") ? "border-red-200 bg-red-50 text-red-800" : "border-emerald-200 bg-emerald-50 text-emerald-800"}`}>
               {ingestResult}
@@ -608,11 +635,11 @@ function TerritoryTab() {
       <section className="rounded-xl border bg-white shadow-sm overflow-hidden">
         <div className="px-4 py-3 border-b bg-slate-50 flex items-center justify-between">
           <h2 className="text-sm font-semibold text-slate-800">Loaded counties</h2>
-          <span className="text-xs text-slate-500">{counties.length} {counties.length === 1 ? "county" : "counties"}</span>
+          <span className="text-xs text-slate-500">{loadedCounties.length} {loadedCounties.length === 1 ? "county" : "counties"}</span>
         </div>
         {loading ? (
           <p className="px-4 py-4 text-sm text-slate-400">Loading…</p>
-        ) : counties.length === 0 ? (
+        ) : loadedCounties.length === 0 ? (
           <p className="px-4 py-4 text-sm text-slate-400">No parcel data loaded yet. Run the ingest above to populate counties.</p>
         ) : (
           <div className="overflow-x-auto">
@@ -629,9 +656,9 @@ function TerritoryTab() {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {counties.map((c) => {
+                {loadedCounties.map((c) => {
                   const key = `${c.state_fips}-${c.county_fips}`;
-                  const name = countyName(c.state_fips, c.county_fips);
+                  const name = countyLabel(c.state_fips, c.county_fips);
                   const ooPercent = c.parcel_count > 0 ? Math.round(c.owner_occupied_count / c.parcel_count * 100) : 0;
                   return (
                     <tr key={key} className="hover:bg-slate-50">
@@ -724,6 +751,7 @@ function SystemTab() {
   const [directChecks, setDirectChecks] = useState<ApiCheck[]>(DIRECT_CHECKS);
   const [edgeFnChecks, setEdgeFnChecks] = useState<ApiCheck[]>(EDGE_FN_CHECKS);
   const [checking, setChecking] = useState(false);
+  const [checkingId, setCheckingId] = useState<string | null>(null);
   const [auditLog, setAuditLog] = useState<AuditRow[]>([]);
   const [auditLoading, setAuditLoading] = useState(true);
   const [auditError, setAuditError] = useState<string | null>(null);
@@ -745,52 +773,58 @@ function SystemTab() {
     })();
   }, []);
 
+  const checkOne = async (check: ApiCheck): Promise<ApiCheck> => {
+    const token = (await supabase.auth.getSession()).data.session?.access_token;
+    const authKey = token ?? SUPABASE_ANON_KEY;
+    const t0 = Date.now();
+    try {
+      if (check.category === "direct") {
+        const headers: Record<string, string> = {
+          "User-Agent": "Sunpath/1.0 (admin health check)",
+        };
+        if (check.name === "Supabase REST") {
+          headers["apikey"] = SUPABASE_ANON_KEY;
+          headers["Authorization"] = `Bearer ${SUPABASE_ANON_KEY}`;
+        }
+        const res = await fetch(check.endpoint, { headers, signal: AbortSignal.timeout(8000) });
+        return { ...check, ok: res.ok, latencyMs: Date.now() - t0 };
+      } else {
+        // Edge function: send proper auth so CORS is clean, check for alive (not 502/503/404)
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/${check.endpoint}`, {
+          method: "GET",
+          headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${authKey}` },
+          signal: AbortSignal.timeout(8000),
+        });
+        const alive = res.status !== 503 && res.status !== 502 && res.status !== 404;
+        return { ...check, ok: alive, latencyMs: Date.now() - t0 };
+      }
+    } catch {
+      return { ...check, ok: false, latencyMs: Date.now() - t0 };
+    }
+  };
+
+  const runSingleCheck = async (name: string) => {
+    setCheckingId(name);
+    const direct = directChecks.find((c) => c.name === name);
+    if (direct) {
+      const updated = await checkOne(direct);
+      setDirectChecks((prev) => prev.map((c) => c.name === name ? updated : c));
+    }
+    const edge = edgeFnChecks.find((c) => c.name === name);
+    if (edge) {
+      const updated = await checkOne(edge);
+      setEdgeFnChecks((prev) => prev.map((c) => c.name === name ? updated : c));
+    }
+    setCheckingId(null);
+  };
+
   const runChecks = async () => {
     setChecking(true);
-
-    const token = (await supabase.auth.getSession()).data.session?.access_token;
-
-    // Direct browser checks
-    const updatedDirect = await Promise.all(
-      directChecks.map(async (check) => {
-        if (!check.endpoint) return { ...check, ok: false, latencyMs: 0 };
-        const t0 = Date.now();
-        try {
-          const res = await fetch(check.endpoint, {
-            headers: { "User-Agent": "Sunpath/1.0 (admin health check; contact admin@sunpath.dev)" },
-            signal: AbortSignal.timeout(8000),
-          });
-          return { ...check, ok: res.ok, latencyMs: Date.now() - t0 };
-        } catch {
-          return { ...check, ok: false, latencyMs: Date.now() - t0 };
-        }
-      })
-    );
+    const [updatedDirect, updatedEdge] = await Promise.all([
+      Promise.all(directChecks.map(checkOne)),
+      Promise.all(edgeFnChecks.map(checkOne)),
+    ]);
     setDirectChecks(updatedDirect);
-
-    // Edge function alive checks (GET → expect 405 or 401, anything but network error = deployed)
-    const updatedEdge = await Promise.all(
-      edgeFnChecks.map(async (check) => {
-        if (!SUPABASE_URL) return { ...check, ok: false, latencyMs: 0 };
-        const t0 = Date.now();
-        try {
-          const res = await fetch(`${SUPABASE_URL}/functions/v1/${check.endpoint}`, {
-            method: "GET",
-            headers: token ? { Authorization: `Bearer ${token}` } : {},
-            signal: AbortSignal.timeout(8000),
-          });
-          // 405 = method not allowed (function is alive, expects POST)
-          // 401 = unauthorized (function is alive, needs auth)
-          // 400 = bad request (function is alive, wrong params)
-          // 200 = alive and returned something
-          // 404 = function not deployed; 503/502 = gateway error
-          const alive = res.status !== 503 && res.status !== 502 && res.status !== 404;
-          return { ...check, ok: alive, latencyMs: Date.now() - t0 };
-        } catch {
-          return { ...check, ok: false, latencyMs: Date.now() - t0 };
-        }
-      })
-    );
     setEdgeFnChecks(updatedEdge);
     setChecking(false);
   };
@@ -852,16 +886,24 @@ function SystemTab() {
         </div>
         <ul className="divide-y">
           {directChecks.map((c) => (
-            <li key={c.name} className="flex items-center gap-3 px-4 py-3">
+            <li key={c.name} className="flex items-center gap-2 px-4 py-3">
               <StatusDot ok={c.ok} />
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <div className="text-sm font-medium text-slate-800">{c.name}</div>
                 <div className="text-xs text-slate-400">{c.label}</div>
               </div>
-              {c.latencyMs !== null && <span className="text-xs tabular-nums text-slate-500">{c.latencyMs}ms</span>}
-              {c.ok === null && <span className="text-xs text-slate-400">—</span>}
-              {c.ok === false && c.latencyMs !== null && <span className="text-xs text-red-600 font-medium">Failed</span>}
-              {c.ok === true && <span className="text-xs text-emerald-600 font-medium">OK</span>}
+              {c.latencyMs !== null && <span className="text-xs tabular-nums text-slate-500 shrink-0">{c.latencyMs}ms</span>}
+              {c.ok === null && <span className="text-xs text-slate-400 shrink-0 w-12 text-right">—</span>}
+              {c.ok === false && c.latencyMs !== null && <span className="text-xs text-red-600 font-medium shrink-0 w-12 text-right">Failed</span>}
+              {c.ok === true && <span className="text-xs text-emerald-600 font-medium shrink-0 w-12 text-right">OK</span>}
+              <button
+                type="button"
+                disabled={checking || checkingId === c.name}
+                onClick={() => void runSingleCheck(c.name)}
+                className="shrink-0 rounded border border-slate-200 px-2 py-0.5 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+              >
+                {checkingId === c.name ? "…" : "Check"}
+              </button>
             </li>
           ))}
         </ul>
@@ -871,16 +913,24 @@ function SystemTab() {
         </div>
         <ul className="divide-y">
           {edgeFnChecks.map((c) => (
-            <li key={c.name} className="flex items-center gap-3 px-4 py-3">
+            <li key={c.name} className="flex items-center gap-2 px-4 py-3">
               <StatusDot ok={c.ok} />
-              <div className="flex-1">
-                <div className="text-sm font-medium text-slate-800 font-mono">{c.name}</div>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium text-slate-800 font-mono truncate">{c.name}</div>
                 <div className="text-xs text-slate-400">{c.label}</div>
               </div>
-              {c.latencyMs !== null && <span className="text-xs tabular-nums text-slate-500">{c.latencyMs}ms</span>}
-              {c.ok === null && <span className="text-xs text-slate-400">—</span>}
-              {c.ok === false && c.latencyMs !== null && <span className="text-xs text-red-600 font-medium">Unreachable</span>}
-              {c.ok === true && <span className="text-xs text-emerald-600 font-medium">Alive</span>}
+              {c.latencyMs !== null && <span className="text-xs tabular-nums text-slate-500 shrink-0">{c.latencyMs}ms</span>}
+              {c.ok === null && <span className="text-xs text-slate-400 shrink-0 w-16 text-right">—</span>}
+              {c.ok === false && c.latencyMs !== null && <span className="text-xs text-red-600 font-medium shrink-0 w-16 text-right">Unreachable</span>}
+              {c.ok === true && <span className="text-xs text-emerald-600 font-medium shrink-0 w-16 text-right">Alive</span>}
+              <button
+                type="button"
+                disabled={checking || checkingId === c.name}
+                onClick={() => void runSingleCheck(c.name)}
+                className="shrink-0 rounded border border-slate-200 px-2 py-0.5 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+              >
+                {checkingId === c.name ? "…" : "Check"}
+              </button>
             </li>
           ))}
         </ul>

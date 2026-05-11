@@ -70,6 +70,26 @@ Field intelligence for door-to-door solar reps. One app. Every data source. Zero
 
 ---
 
+## Shipped — Phase 6.8: Admin portal (2026-05-11)
+
+Full-page `/admin` operator console. Admin-role gated (`rep.role = 'admin'`).
+
+| Item | Description | Status |
+|------|-------------|--------|
+| 6.8-A | **Account management** — all reps with status, role, created date; approve/suspend/reactivate inline; click any row → Edit modal | ✅ Shipped |
+| 6.8-B | **Access request queue** — pending requests from `/request-access`, approve/reject with one tap | ✅ Shipped |
+| 6.8-C | **Invite management** — create invite links, view history (pending/accepted/expired/revoked), one-click revoke | ✅ Shipped |
+| 6.8-D | **API connectivity checks** — "Run all checks" + per-row "Check"; direct checks (NOAA NWS, Supabase REST) + 12 edge function alive probes with auth headers | ✅ Shipped |
+| 6.8-E | **Territory ingest** — cascading State → County dropdowns (15 SW VA counties); Run ingest button calls `ingest-parcels` edge function directly (no GitHub Actions needed for incremental syncs) | ✅ Shipped |
+| 6.8-F | **Loaded counties table** — parcel count, owner-occupied %, solar count, last ingest, last source; Re-score trigger per county | ✅ Shipped |
+| 6.8-G | **Audit log viewer** — last 100 events, event-type filter dropdown, Export CSV; requires migration 0030 | ✅ Shipped |
+| 6.8-H | **Edge function status panel** — 25 deployed functions listed as chips; Supabase logs link | ✅ Shipped |
+| 6.8-I | **Docs tab** — curated links to Architecture & Planning, Data & APIs, Supabase Dashboard, GitHub (no external hosting needed) | ✅ Shipped |
+| 6.8-J | **Admin nav guard** — non-admins redirected to `/home`; admin shield icon in AppShell mobile header | ✅ Shipped |
+| 6.8-K | **Edit rep modal** — click any rep row → edit display name, role, status; send password reset email | ✅ Shipped |
+
+---
+
 ## Shipped — Phase 6.5: Navigation restructure + draggable dashboards (2026-05-10)
 
 Complete 6-tab navigation overhaul and draggable dashboard framework.
@@ -107,25 +127,6 @@ The property dashboard is the heart of the app. This sprint completes it.
 | 6-G | Property dashboard UI revamp — dashboard layout, skeleton loaders, estimated vs. actual badges | Planned |
 | 6-H | **Property notes** — voice (Web Speech API), text, and photo capture linked to each parcel; smart follow-up trigger detection from note text | Planned |
 | 6-I | **Reports module** — daily/weekly activity summary, conversion funnel, objection analysis, searchable note archive, export as PDF/text | Planned |
-
----
-
-## Coming up — Phase 6.8: Admin Portal
-
-A web-based operator console for account management, data-feed monitoring, and internal documentation. Accessible at `/admin` (admin-role gate). Designed for a single operator who needs visibility into the backend without going to the Supabase dashboard.
-
-| Item | Description | Status |
-|------|-------------|--------|
-| 6.8-A | **Account management** — view all reps (status, role, last seen), approve/suspend/remove accounts, change roles. Replaces the embedded `AdminPanel` widget in Settings with a full-page experience. | Planned |
-| 6.8-B | **Access request queue** — pending requests from the `/request-access` form, with approve/reject and email notification. | Planned |
-| 6.8-C | **Invite management** — create invite links for specific emails, view pending/accepted/expired/revoked invites, one-click revoke. | Planned |
-| 6.8-D | **Data feed health dashboard** — one row per external API (NOAA NWS, NREL, EIA, DSIRE, Census, Overpass, Geocoder). Shows: last successful call, last error, avg response time (last 24h), rate-limit status. Calls a `/admin/health` edge function that probes each feed. | Planned |
-| 6.8-E | **API reference doc viewer** — `/admin/docs/apis` renders an in-app Markdown doc listing every integrated API: what data we get, which fields map to which UI elements, rate limits, auth method, fallback behavior. Kept in `docs/apis.md`. | Planned |
-| 6.8-F | **Internal docs viewer** — `/admin/docs` renders all files in the `docs/` folder (design spec, whitepaper, troubleshooting guide, ADRs) as formatted Markdown pages. No external hosting required. | Planned |
-| 6.8-G | **Troubleshooting runbook** — `docs/troubleshooting.md` covering: map not loading, parcel data empty, weather fails, bill OCR fails, push notifications not firing, OAuth not working, edge function errors (with Supabase log links). | Planned |
-| 6.8-H | **Audit log viewer** — paginated table of `audit_log` entries filtered by rep, table, or time range. Useful for debugging "who changed what." | Planned |
-| 6.8-I | **Edge function invocation log** — direct link to Supabase function logs per function with last 50 invocations and status codes. Opens in new tab (no embedding needed). | Planned |
-| 6.8-J | **Admin nav guard** — `/admin/*` redirects non-admins to `/home`. Admin link appears in the About page for admins only. | Planned |
 
 ---
 

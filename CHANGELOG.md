@@ -19,6 +19,25 @@ All notable changes to Sunpath. Dates are approximate session dates.
 
 ---
 
+## [0.7.0] — 2026-05-11 · Admin portal v2 + territory ingest automation
+
+### Added
+- Admin portal Territory tab: cascading State → County dropdowns covering 15 SW Virginia counties; "Run ingest" button calls `ingest-parcels` edge function directly — no GitHub Actions required for incremental syncs
+- Admin portal System tab: "Run all checks" button + individual "Check" button per API row; proper auth headers for Supabase REST check (fixes false negatives); `AbortSignal.timeout(8000)` guards each probe
+- Edit rep modal: click any rep row → edit display name, role, and status in one place; send password reset email from the modal
+- Audit log: event-type filter dropdown (All events / specific event); Export CSV with applied filter
+
+### Changed
+- `ingest-parcels` edge function now accepts `state_fips` and `county_fips` from POST body (defaults to 51/169 Scott County VA); all 15 SW VA counties route through the same VGIN ArcGIS endpoint with a dynamic WHERE clause filter
+- `SUPABASE_URL` and `SUPABASE_ANON_KEY` hardcoded fallbacks added to `admin/route.tsx` — VITE env vars are not set as GitHub Actions secrets so the portal was silently failing all edge function calls
+
+### Fixed
+- Invite "Create invite" was silently failing — SUPABASE_URL resolved to undefined at runtime (env var not set); now falls back to the hardcoded project URL
+- All edge function health checks except NOAA NWS were incorrectly showing failed — GET requests without `apikey` / `Authorization` headers triggered CORS errors on Supabase gateway 401 responses
+- Supabase REST health check was returning false-negative — auth headers were missing from the direct browser probe
+
+---
+
 ## [0.6.0] — 2026-05-10 · Today dashboard + walk list + bill capture revamp
 
 ### Added
