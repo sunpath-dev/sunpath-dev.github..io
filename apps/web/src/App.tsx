@@ -31,8 +31,14 @@ const ReportsRoute = lazy(() =>
 const SettingsRoute = lazy(() =>
   import("@/modules/settings/index.js").then((m) => ({ default: m.SettingsRoute })),
 );
+const PipelineRoute = lazy(() =>
+  import("@/modules/pipeline/index.js").then((m) => ({ default: m.PipelineRoute })),
+);
 const BillCaptureRoute = lazy(() =>
   import("@/modules/bill/index.js").then((m) => ({ default: m.BillCaptureRoute })),
+);
+const NotesRoute = lazy(() =>
+  import("@/modules/properties/index.js").then((m) => ({ default: m.NotesRoute })),
 );
 const CallbackRoute = lazy(() =>
   import("@/modules/callback/index.js").then((m) => ({ default: m.CallbackRoute })),
@@ -105,11 +111,13 @@ export default function App() {
           <Route path="/home" element={<HomeRoute />} />
           <Route path="/properties" element={<PropertiesRoute />} />
           <Route path="/properties/walk" element={<WalkRoute />} />
+          <Route path="/properties/notes" element={<NotesRoute />} />
           <Route path="/properties/:id" element={<PropertyDetailRoute />} />
           <Route path="/territory" element={<TerritoryRoute />} />
           <Route path="/build" element={<BuildRoute />} />
           <Route path="/reports" element={<ReportsRoute />} />
           <Route path="/about" element={<SettingsRoute />} />
+          <Route path="/pipeline" element={<PipelineRoute />} />
 
           {/* Sub-routes (no primary nav highlight needed) */}
           <Route path="/bill" element={<BillCaptureRoute />} />

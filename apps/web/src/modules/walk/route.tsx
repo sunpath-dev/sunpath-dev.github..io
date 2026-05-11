@@ -123,10 +123,45 @@ export function WalkRoute() {
     weekday: "short", month: "short", day: "numeric",
   });
 
+  const subNav = (
+    <div className="flex items-center gap-1 overflow-x-auto border-b bg-slate-100 px-3 py-1.5">
+      {[
+        { icon: "🔍", label: "Search", to: "/properties" },
+        { icon: "🗺", label: "Map", to: "/territory" },
+        { icon: "🚶", label: "Walk", to: "/properties/walk", active: true },
+        { icon: "📝", label: "Notes", to: "/properties/notes" },
+      ].map((item) => (
+        <button
+          key={item.label}
+          type="button"
+          onClick={() => navigate(item.to)}
+          className={[
+            "flex shrink-0 items-center gap-1 rounded-md px-3 py-1 text-xs font-medium",
+            item.active
+              ? "bg-amber-500 text-white"
+              : "text-slate-600 hover:bg-slate-200",
+          ].join(" ")}
+        >
+          <span>{item.icon}</span>
+          <span>{item.label}</span>
+        </button>
+      ))}
+      <button
+        type="button"
+        disabled
+        className="flex shrink-0 items-center gap-1 rounded-md px-3 py-1 text-xs font-medium text-slate-400 cursor-not-allowed"
+      >
+        <span>📊</span>
+        <span>Stats</span>
+      </button>
+    </div>
+  );
+
   // Empty state
   if (route.length === 0) {
     return (
       <div className="flex h-full flex-col">
+        {subNav}
         <header className="border-b bg-white px-4 py-3">
           <h1 className="text-lg font-bold">Today's Route · {today}</h1>
           {forecast.data ? (
@@ -164,6 +199,7 @@ export function WalkRoute() {
 
   return (
     <div className="flex h-full flex-col">
+      {subNav}
       <header className="border-b bg-white px-4 py-3">
         <div className="flex items-center justify-between">
           <div>

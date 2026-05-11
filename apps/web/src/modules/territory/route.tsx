@@ -21,6 +21,8 @@ import { AddressSearch } from "@/components/AddressSearch.js";
 const DEFAULT_CENTER: [number, number] = [-82.5915, 36.6376];
 const DEFAULT_ZOOM = 13;
 const PARCEL_SOURCE = "parcels";
+const HEATMAP_LAYER = "parcels-heat";
+const CIRCLE_LAYER = "parcels-circle";
 
 const OSM_STYLE: maplibregl.StyleSpecification = {
   version: 8,
@@ -88,6 +90,8 @@ export function TerritoryRoute() {
   const [selected, setSelected] = useState<ParcelDetail | null>(null);
   const lastPinsRef = useRef<ParcelPin[]>([]);
   const [isSatellite, setIsSatellite] = useState(false);
+  const [showHeatmap, setShowHeatmap] = useState(false);
+  const showHeatmapRef = useRef(false);
   const [searchParams] = useSearchParams();
   const geocodeLabel = isFinite(parseFloat(searchParams.get("lat") ?? "")) ? searchParams.get("q") : null;
 
@@ -156,13 +160,47 @@ export function TerritoryRoute() {
           "circle-opacity": 0.85,
         },
       });
+      // Heatmap layer — hidden by default; toggled via showHeatmap state
+      map.addLayer({
+        id: HEATMAP_LAYER,
+        type: "heatmap",
+        source: PARCEL_SOURCE,
+        layout: { visibility: "none" },
+        paint: {
+          "heatmap-weight": [
+            "interpolate", ["linear"], ["get", "score"],
+            0, 0,
+            100, 1,
+          ],
+          "heatmap-intensity": [
+            "interpolate", ["linear"], ["zoom"],
+            10, 1,
+            15, 3,
+          ],
+          "heatmap-color": [
+            "interpolate", ["linear"], ["heatmap-density"],
+            0, "rgba(254,243,199,0)",
+            0.25, "#fcd34d",
+            0.5, "#f59e0b",
+            0.75, "#ea580c",
+            1, "#b91c1c",
+          ],
+          "heatmap-radius": [
+            "interpolate", ["linear"], ["zoom"],
+            10, 20,
+            15, 40,
+          ],
+          "heatmap-opacity": 0.85,
+        },
+      });
+
       const f = buildMapFilter(
         filterRef.current.minScore,
         filterRef.current.maxScore,
         filterRef.current.hideExisting,
         filterRef.current.ownerOccOnly,
       );
-      if (f) map.setFilter("parcels-circle", f as maplibregl.FilterSpecification);
+      if (f) map.setFilter(CIRCLE_LAYER, f as maplibregl.FilterSpecification);
     });
 
     let cancelled = false;
@@ -244,10 +282,20 @@ export function TerritoryRoute() {
     filterRef.current = { minScore, maxScore, hideExisting, ownerOccOnly };
     const map = mapRef.current;
     if (!map || !map.isStyleLoaded()) return;
-    if (!map.getLayer("parcels-circle")) return;
+    if (!map.getLayer(CIRCLE_LAYER)) return;
     const f = buildMapFilter(minScore, maxScore, hideExisting, ownerOccOnly);
-    map.setFilter("parcels-circle", f as maplibregl.FilterSpecification | null);
+    map.setFilter(CIRCLE_LAYER, f as maplibregl.FilterSpecification | null);
   }, [minScore, maxScore, hideExisting, ownerOccOnly]);
+
+  // Toggle heatmap / circle layers when showHeatmap changes.
+  useEffect(() => {
+    showHeatmapRef.current = showHeatmap;
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded()) return;
+    if (!map.getLayer(HEATMAP_LAYER) || !map.getLayer(CIRCLE_LAYER)) return;
+    map.setLayoutProperty(HEATMAP_LAYER, "visibility", showHeatmap ? "visible" : "none");
+    map.setLayoutProperty(CIRCLE_LAYER, "visibility", showHeatmap ? "none" : "visible");
+  }, [showHeatmap]);
 
   // Fly to geocoded address, then open the nearest parcel detail sheet.
   useEffect(() => {
@@ -339,11 +387,12 @@ export function TerritoryRoute() {
           data: { type: "FeatureCollection", features: [] },
         });
       }
-      if (!map.getLayer("parcels-circle")) {
+      if (!map.getLayer(CIRCLE_LAYER)) {
         map.addLayer({
-          id: "parcels-circle",
+          id: CIRCLE_LAYER,
           type: "circle",
           source: PARCEL_SOURCE,
+          layout: { visibility: showHeatmapRef.current ? "none" : "visible" },
           paint: {
             "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 2, 16, 6],
             "circle-color": [
@@ -367,6 +416,28 @@ export function TerritoryRoute() {
           },
         });
       }
+      if (!map.getLayer(HEATMAP_LAYER)) {
+        map.addLayer({
+          id: HEATMAP_LAYER,
+          type: "heatmap",
+          source: PARCEL_SOURCE,
+          layout: { visibility: showHeatmapRef.current ? "visible" : "none" },
+          paint: {
+            "heatmap-weight": ["interpolate", ["linear"], ["get", "score"], 0, 0, 100, 1],
+            "heatmap-intensity": ["interpolate", ["linear"], ["zoom"], 10, 1, 15, 3],
+            "heatmap-color": [
+              "interpolate", ["linear"], ["heatmap-density"],
+              0, "rgba(254,243,199,0)",
+              0.25, "#fcd34d",
+              0.5, "#f59e0b",
+              0.75, "#ea580c",
+              1, "#b91c1c",
+            ],
+            "heatmap-radius": ["interpolate", ["linear"], ["zoom"], 10, 20, 15, 40],
+            "heatmap-opacity": 0.85,
+          },
+        });
+      }
       const src = map.getSource(PARCEL_SOURCE) as maplibregl.GeoJSONSource | undefined;
       if (lastPinsRef.current.length > 0) {
         src?.setData(pinsToGeoJSON(lastPinsRef.current));
@@ -377,7 +448,7 @@ export function TerritoryRoute() {
         filterRef.current.hideExisting,
         filterRef.current.ownerOccOnly,
       );
-      if (f) map.setFilter("parcels-circle", f as maplibregl.FilterSpecification);
+      if (f) map.setFilter(CIRCLE_LAYER, f as maplibregl.FilterSpecification);
     });
   }, [isSatellite]);
 
@@ -422,6 +493,17 @@ export function TerritoryRoute() {
         >
           <span>⚙</span>
           <span>Filters{filtersActive ? " ●" : ""}</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowHeatmap((v) => !v)}
+          className={[
+            "flex shrink-0 items-center gap-1 rounded-md px-3 py-1 text-xs font-medium",
+            showHeatmap ? "bg-amber-500 text-white" : "text-slate-600 hover:bg-slate-200",
+          ].join(" ")}
+        >
+          <span>🌡</span>
+          <span>Heat map</span>
         </button>
       </div>
 
