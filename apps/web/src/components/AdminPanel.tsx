@@ -84,6 +84,7 @@ export function AdminPanel() {
     setInvites((invRes.data as InviteRow[] | null) ?? []);
   };
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
     if (rep?.role === "admin") void refresh();
   }, [rep?.role]);

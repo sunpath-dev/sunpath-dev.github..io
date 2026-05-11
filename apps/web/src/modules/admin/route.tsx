@@ -672,7 +672,6 @@ export function AdminRoute() {
   }, [rep, navigate]);
 
   const refresh = useCallback(async () => {
-    setLoading(true);
     const [repsRes, reqRes, invRes] = await Promise.all([
       supabase.from("rep").select("id,display_name,role,status,created_at").order("created_at", { ascending: true }),
       supabase.from("rep_access_request").select("id,email,display_name,note,status,created_at").eq("status", "pending").order("created_at", { ascending: true }),
@@ -684,6 +683,7 @@ export function AdminRoute() {
     setLoading(false);
   }, []);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
     if (rep?.role === "admin") void refresh();
   }, [rep?.role, refresh]);
