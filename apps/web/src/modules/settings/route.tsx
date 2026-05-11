@@ -1,9 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useAuth, enterAsPoc } from "@/lib/auth.js";
-import { supabase } from "@/lib/supabase.js";
-import { Button } from "@sunpath/ui";
 import { PushOptIn } from "./PushOptIn.js";
-import { AdminPanel } from "@/components/AdminPanel.js";
 
 const REPO = "https://github.com/sunpath-dev/sunpath-dev.github.io";
 const SUPPORT_EMAIL = "support@sunpath.dev";
@@ -50,66 +48,10 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 export function SettingsRoute() {
-  const { session, rep, signOut } = useAuth();
-
-  // Profile state
-  const [displayName, setDisplayName] = useState<string | null>(null);
-  const [editingName, setEditingName] = useState(false);
-  const [nameInput, setNameInput] = useState("");
-  const [savingName, setSavingName] = useState(false);
-
-  // Password change state
-  const [showPwForm, setShowPwForm] = useState(false);
-  const [newPw, setNewPw] = useState("");
-  const [confirmPw, setConfirmPw] = useState("");
-  const [pwBusy, setPwBusy] = useState(false);
-  const [pwError, setPwError] = useState<string | null>(null);
-  const [pwSuccess, setPwSuccess] = useState(false);
-
-  // Hidden POC backdoor
+  const { rep } = useAuth();
   const [pocTaps, setPocTaps] = useState(0);
 
-  const isEmailUser = session?.user?.app_metadata?.provider === "email";
-  const isPoc = rep?.id === "poc-guest";
-
-  useEffect(() => {
-    if (!rep?.id || isPoc) return;
-    void supabase.from("rep").select("display_name").eq("id", rep.id).maybeSingle()
-      .then(({ data }) => { setDisplayName((data as { display_name?: string | null } | null)?.display_name ?? null); });
-  }, [rep?.id, isPoc]);
-
-  const startEditName = () => {
-    setNameInput(displayName ?? "");
-    setEditingName(true);
-  };
-
-  const saveName = async () => {
-    if (!rep?.id || isPoc) return;
-    setSavingName(true);
-    const trimmed = nameInput.trim();
-    await supabase.from("rep").update({ display_name: trimmed }).eq("id", rep.id);
-    setDisplayName(trimmed);
-    setEditingName(false);
-    setSavingName(false);
-  };
-
-  const changePassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newPw !== confirmPw) { setPwError("Passwords don't match."); return; }
-    if (newPw.length < 6) { setPwError("Minimum 6 characters."); return; }
-    setPwBusy(true);
-    setPwError(null);
-    const { error } = await supabase.auth.updateUser({ password: newPw });
-    if (error) {
-      setPwError(error.message);
-    } else {
-      setPwSuccess(true);
-      setNewPw("");
-      setConfirmPw("");
-      setShowPwForm(false);
-    }
-    setPwBusy(false);
-  };
+  const isAdmin = rep?.role === "admin";
 
   const handleVersionTap = () => {
     const n = pocTaps + 1;
@@ -122,7 +64,7 @@ export function SettingsRoute() {
       <header className="border-b bg-white px-4 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Profile &amp; Settings</h1>
+            <h1 className="text-2xl font-bold text-slate-900">About</h1>
             <p className="text-sm text-slate-500 mt-0.5">Sunpath · Field intelligence for solar reps</p>
           </div>
           <button type="button" onClick={handleVersionTap} className="flex flex-col items-end gap-1 select-none" aria-label="version">
@@ -136,125 +78,43 @@ export function SettingsRoute() {
 
       <div className="flex-1 space-y-3 p-4">
 
-        {/* Profile card */}
+        {/* Account quick-links */}
         <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
           <div className="px-4 py-3 border-b">
-            <div className="text-xs font-semibold uppercase tracking-wide text-slate-600">Profile</div>
+            <div className="text-sm font-semibold text-slate-800">Account</div>
           </div>
-          <div className="px-4 py-3 space-y-3">
-
-            {/* Name */}
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-sm text-slate-500 shrink-0">Name</span>
-              {editingName ? (
-                <div className="flex items-center gap-2 flex-1 justify-end">
-                  <input
-                    type="text"
-                    value={nameInput}
-                    onChange={(e) => setNameInput(e.target.value)}
-                    autoFocus
-                    className="flex-1 max-w-[180px] rounded-lg border border-slate-200 px-2 py-1 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-400"
-                    onKeyDown={(e) => { if (e.key === "Enter") void saveName(); if (e.key === "Escape") setEditingName(false); }}
-                  />
-                  <button type="button" disabled={savingName} onClick={() => void saveName()} className="text-xs font-semibold text-amber-600 hover:text-amber-700 disabled:opacity-50">
-                    {savingName ? "Saving…" : "Save"}
-                  </button>
-                  <button type="button" onClick={() => setEditingName(false)} className="text-xs text-slate-400 hover:text-slate-600">
-                    Cancel
-                  </button>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-slate-800">
-                    {isPoc ? "POC Guest" : (displayName ?? "—")}
-                  </span>
-                  {!isPoc && (
-                    <button type="button" onClick={startEditName} className="text-xs text-slate-400 hover:text-amber-600">
-                      Edit
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Email */}
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-slate-500">Email</span>
-              <span className="text-sm font-medium text-slate-800">{session?.user?.email ?? "—"}</span>
-            </div>
-
-            {/* Role */}
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-slate-500">Role</span>
-              <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${rep?.role === "admin" ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-700"}`}>
-                {rep?.role ?? "rep"}
-              </span>
-            </div>
-
-            {/* Sign-in method */}
-            {session?.user?.identities && session.user.identities.length > 0 && (
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-slate-500">Sign-in</span>
-                <span className="text-sm text-slate-700 capitalize">
-                  {session.user.identities.map((i) => i.provider === "azure" ? "Microsoft" : i.provider === "email" ? "Email / password" : i.provider).join(", ")}
-                </span>
+          <div className="divide-y">
+            <Link to="/profile" className="flex items-center justify-between px-4 py-3 hover:bg-slate-50">
+              <div className="flex items-center gap-3">
+                <svg className="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                </svg>
+                <span className="text-sm font-medium text-slate-800">My Profile</span>
               </div>
+              <svg className="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+              </svg>
+            </Link>
+            {isAdmin && (
+              <Link to="/admin" className="flex items-center justify-between px-4 py-3 hover:bg-slate-50">
+                <div className="flex items-center gap-3">
+                  <svg className="h-5 w-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.955 11.955 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+                  </svg>
+                  <span className="text-sm font-medium text-slate-800">Admin Portal</span>
+                </div>
+                <svg className="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                </svg>
+              </Link>
             )}
           </div>
-
-          {/* Change password — email users only */}
-          {isEmailUser && !isPoc && (
-            <div className="border-t px-4 py-3">
-              {pwSuccess && (
-                <p className="mb-2 text-xs text-emerald-700 font-medium">Password updated.</p>
-              )}
-              {!showPwForm ? (
-                <button type="button" onClick={() => { setShowPwForm(true); setPwSuccess(false); }} className="text-xs text-amber-600 hover:text-amber-700 font-medium">
-                  Change password
-                </button>
-              ) : (
-                <form onSubmit={(e) => void changePassword(e)} className="space-y-2">
-                  <input
-                    type="password"
-                    required
-                    minLength={6}
-                    placeholder="New password (min 6 characters)"
-                    autoComplete="new-password"
-                    value={newPw}
-                    onChange={(e) => setNewPw(e.target.value)}
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
-                  />
-                  <input
-                    type="password"
-                    required
-                    placeholder="Confirm new password"
-                    autoComplete="new-password"
-                    value={confirmPw}
-                    onChange={(e) => setConfirmPw(e.target.value)}
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
-                  />
-                  {pwError && <p className="text-xs text-red-700">{pwError}</p>}
-                  <div className="flex gap-2">
-                    <button type="submit" disabled={pwBusy} className="rounded-lg bg-amber-500 px-4 py-2 text-xs font-semibold text-white hover:bg-amber-600 disabled:opacity-50">
-                      {pwBusy ? "Saving…" : "Update password"}
-                    </button>
-                    <button type="button" onClick={() => { setShowPwForm(false); setPwError(null); }} className="text-xs text-slate-500 hover:text-slate-700">
-                      Cancel
-                    </button>
-                  </div>
-                </form>
-              )}
-            </div>
-          )}
         </div>
 
         {/* Push notifications */}
         <div>
           <PushOptIn />
         </div>
-
-        {/* Admin portal — admins only */}
-        <AdminPanel />
 
         {/* Roadmap + quick links */}
         <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
@@ -322,12 +182,6 @@ export function SettingsRoute() {
             <p><span className="font-semibold text-slate-800">Location</span> is used locally for weather, walk distances, and area intelligence. Never stored on the server.</p>
           </div>
         </Section>
-
-        <div className="pt-2 pb-4">
-          <Button variant="ghost" onClick={() => void signOut()}>
-            Sign out
-          </Button>
-        </div>
 
       </div>
     </div>

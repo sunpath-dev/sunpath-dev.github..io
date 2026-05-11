@@ -1,4 +1,5 @@
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, Link } from "react-router-dom";
+import { useAuth } from "@/lib/auth.js";
 
 const tabs = [
   {
@@ -74,32 +75,82 @@ function TabItem({ to, label, icon }: typeof tabs[number]) {
   );
 }
 
+const AdminIcon = () => (
+  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.955 11.955 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+  </svg>
+);
+
+const UserIcon = () => (
+  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+  </svg>
+);
+
 export function AppShell() {
+  const { rep } = useAuth();
+  const isAdmin = rep?.role === "admin";
+
+  const railLinkClass = ({ isActive }: { isActive: boolean }) =>
+    [
+      "flex w-full flex-col items-center gap-1 rounded-lg px-2 py-3 text-xs font-medium transition-colors",
+      isActive
+        ? "bg-amber-50 text-amber-600"
+        : "text-slate-400 hover:bg-slate-50 hover:text-slate-700",
+    ].join(" ");
+
   return (
     <div className="flex h-dvh overflow-hidden">
       {/* Desktop left rail — visible at lg+ */}
       <nav className="hidden lg:flex lg:w-20 lg:flex-col lg:items-center lg:gap-1 lg:border-r lg:bg-white lg:py-4">
         {tabs.map((t) => (
-          <NavLink
-            key={t.to}
-            to={t.to}
-            className={({ isActive }) =>
-              [
-                "flex w-full flex-col items-center gap-1 rounded-lg px-2 py-3 text-xs font-medium transition-colors",
-                isActive
-                  ? "bg-amber-50 text-amber-600"
-                  : "text-slate-400 hover:bg-slate-50 hover:text-slate-700",
-              ].join(" ")
-            }
-          >
+          <NavLink key={t.to} to={t.to} className={railLinkClass}>
             {t.icon}
             <span>{t.label}</span>
           </NavLink>
         ))}
+
+        {/* Spacer pushes profile/admin to bottom */}
+        <div className="flex-1" />
+
+        {isAdmin && (
+          <NavLink to="/admin" className={railLinkClass}>
+            <AdminIcon />
+            <span>Admin</span>
+          </NavLink>
+        )}
+        <NavLink to="/profile" className={railLinkClass}>
+          <UserIcon />
+          <span>Profile</span>
+        </NavLink>
       </nav>
 
       {/* Main content */}
       <div className="flex flex-1 flex-col overflow-hidden">
+
+        {/* Mobile top header — hidden at lg+ */}
+        <header className="flex h-11 shrink-0 items-center justify-between border-b bg-white px-4 lg:hidden">
+          <span className="text-sm font-bold tracking-tight text-slate-900">Sunpath</span>
+          <div className="flex items-center gap-1">
+            {isAdmin && (
+              <Link
+                to="/admin"
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-600"
+                aria-label="Admin portal"
+              >
+                <AdminIcon />
+              </Link>
+            )}
+            <Link
+              to="/profile"
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-100 text-amber-700 hover:bg-amber-200"
+              aria-label="My profile"
+            >
+              <UserIcon />
+            </Link>
+          </div>
+        </header>
+
         <main className="flex flex-1 flex-col min-h-0 overflow-hidden">
           <Outlet />
         </main>

@@ -51,6 +51,12 @@ const AcceptInviteRoute = lazy(() =>
     default: m.AcceptInviteRoute,
   })),
 );
+const AdminRoute = lazy(() =>
+  import("@/modules/admin/index.js").then((m) => ({ default: m.AdminRoute })),
+);
+const ProfileRoute = lazy(() =>
+  import("@/modules/profile/index.js").then((m) => ({ default: m.ProfileRoute })),
+);
 
 function RouteFallback() {
   return (
@@ -152,6 +158,10 @@ export default function App() {
           <Route path="/reports" element={<ReportsRoute />} />
           <Route path="/about" element={<SettingsRoute />} />
           <Route path="/pipeline" element={<PipelineRoute />} />
+
+          {/* Dedicated pages */}
+          <Route path="/admin" element={<AdminRoute />} />
+          <Route path="/profile" element={<ProfileRoute />} />
 
           {/* Sub-routes */}
           <Route path="/bill" element={<BillCaptureRoute />} />
