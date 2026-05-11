@@ -61,34 +61,12 @@ interface AuditRow {
 
 interface ApiCheck {
   name: string;
-  url: string;
+  category: "direct" | "edge";
+  endpoint: string;
   latencyMs: number | null;
   ok: boolean | null;
   label: string;
 }
-
-// ---------------------------------------------------------------------------
-// Edge functions deployed (sourced from supabase functions list 2026-05-10)
-// ---------------------------------------------------------------------------
-
-const EDGE_FUNCTIONS = [
-  "area-intel", "approve-access", "bill-ocr", "callback-submit",
-  "doorcard-pdf", "forecast-fetch", "geo-reverse", "homeowner-export",
-  "incentives-fetch", "ingest-area-signals", "invite-accept", "invite-create",
-  "pvwatts-fetch", "push-send", "rate-watch-eia", "request-access",
-  "rewarm-derive", "score-parcels", "solar-rooftop", "weather-now",
-  "weather-now",
-].filter((v, i, a) => a.indexOf(v) === i).sort();
-
-// Known county FIPS → name mapping
-const COUNTY_NAMES: Record<string, string> = {
-  "51169": "Scott County",
-  "51167": "Russell County",
-  "51195": "Washington County",
-  "51185": "Tazewell County",
-  "51027": "Buchanan County",
-  "51105": "Lee County",
-};
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -120,22 +98,169 @@ function StatusDot({ ok }: { ok: boolean | null }) {
 }
 
 // ---------------------------------------------------------------------------
-// Tab components
+// Edit Rep Modal
+// ---------------------------------------------------------------------------
+
+interface EditRepModalProps {
+  rep: RepRow | null;
+  onClose: () => void;
+  onSave: (id: string, patch: { display_name?: string; role?: string; status?: string }) => Promise<void>;
+}
+
+function EditRepModal({ rep, onClose, onSave }: EditRepModalProps) {
+  const [name, setName] = useState("");
+  const [role, setRole] = useState("rep");
+  const [status, setStatus] = useState("pending");
+  const [resetEmail, setResetEmail] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [resetMsg, setResetMsg] = useState<string | null>(null);
+  const [saveMsg, setSaveMsg] = useState<string | null>(null);
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => {
+    if (rep) {
+      setName(rep.display_name ?? "");
+      setRole(rep.role);
+      setStatus(rep.status);
+      setResetMsg(null);
+      setSaveMsg(null);
+    }
+  }, [rep?.id]);
+
+  if (!rep) return null;
+
+  const handleSave = async () => {
+    setSaving(true);
+    setSaveMsg(null);
+    await onSave(rep.id, { display_name: name.trim() || undefined, role, status });
+    setSaveMsg("Saved.");
+    setSaving(false);
+  };
+
+  const handleReset = async () => {
+    const email = resetEmail.trim();
+    if (!email) return;
+    setResetting(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/#/reset-password`,
+    });
+    setResetMsg(error ? `Error: ${error.message}` : `Reset email sent to ${email}.`);
+    setResetting(false);
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="w-full max-w-md rounded-xl bg-white shadow-xl overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b bg-slate-50">
+          <h3 className="font-semibold text-slate-900">Edit rep — {rep.display_name ?? "(no name)"}</h3>
+          <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-700 text-2xl leading-none">&times;</button>
+        </div>
+
+        <div className="px-5 py-4 space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-slate-700 mb-1">Display name</label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-400"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">Role</label>
+              <select
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400"
+              >
+                <option value="rep">rep</option>
+                <option value="admin">admin</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">Status</label>
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400"
+              >
+                <option value="pending">pending</option>
+                <option value="active">active</option>
+                <option value="suspended">suspended</option>
+              </select>
+            </div>
+          </div>
+
+          {saveMsg && <p className="text-sm text-emerald-700 font-medium">{saveMsg}</p>}
+
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() => void handleSave()}
+            className="w-full rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-600 disabled:opacity-50"
+          >
+            {saving ? "Saving…" : "Save changes"}
+          </button>
+
+          <hr className="border-slate-200" />
+
+          <div>
+            <div className="text-xs font-semibold text-slate-700 mb-1">Send password reset email</div>
+            <div className="text-xs text-slate-500 mb-2">Enter this rep&apos;s email address to send them a password reset link.</div>
+            <div className="flex gap-2">
+              <input
+                type="email"
+                placeholder="rep@example.com"
+                value={resetEmail}
+                onChange={(e) => setResetEmail(e.target.value)}
+                className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-400"
+              />
+              <button
+                type="button"
+                disabled={resetting || !resetEmail.trim()}
+                onClick={() => void handleReset()}
+                className="shrink-0 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+              >
+                {resetting ? "Sending…" : "Send"}
+              </button>
+            </div>
+            {resetMsg && (
+              <p className={`text-xs mt-1.5 font-medium ${resetMsg.startsWith("Error") ? "text-red-700" : "text-emerald-700"}`}>
+                {resetMsg}
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Reps Tab
 // ---------------------------------------------------------------------------
 
 function RepsTab({
   allReps, requests, invites, loading, busy, inviteEmail, inviteRole,
-  inviteBusy, inviteError, inviteUrl, nowMs,
+  inviteBusy, inviteError, inviteUrl, nowMs, hasRealSession,
   setInviteEmail, setInviteRole,
-  setRepStatus, setRepRole, decideRequest, createInvite, revokeInvite,
+  setRepStatus, setRepRole, decideRequest, createInvite, revokeInvite, onEditRep,
 }: {
   allReps: RepRow[]; requests: AccessRequest[]; invites: InviteRow[];
   loading: boolean; busy: string | null; inviteEmail: string; inviteRole: "rep" | "admin";
-  inviteBusy: boolean; inviteError: string | null; inviteUrl: string | null; nowMs: number;
+  inviteBusy: boolean; inviteError: string | null; inviteUrl: string | null;
+  nowMs: number; hasRealSession: boolean;
   setInviteEmail: (v: string) => void; setInviteRole: (v: "rep" | "admin") => void;
   setRepStatus: (id: string, s: string) => void; setRepRole: (id: string, r: string) => void;
   decideRequest: (id: string, d: "approve" | "reject") => void;
   createInvite: (e: React.FormEvent) => void; revokeInvite: (id: string) => void;
+  onEditRep: (rep: RepRow) => void;
 }) {
   if (loading) return <div className="flex flex-1 items-center justify-center py-12 text-sm text-slate-500">Loading…</div>;
 
@@ -185,13 +310,14 @@ function RepsTab({
         ) : (
           <ul className="divide-y">
             {pending.map((r) => (
-              <li key={r.id} className="flex items-center gap-3 px-4 py-3">
+              <li key={r.id} className="flex items-center gap-2 px-4 py-3">
                 <div className="flex-1 min-w-0">
                   <div className="font-semibold text-slate-900">{r.display_name ?? "(no name)"}</div>
                   <div className="text-xs text-slate-400">{ago(r.created_at)}</div>
                 </div>
                 <Badge role={r.role} />
                 <button type="button" disabled={busy === r.id} onClick={() => setRepStatus(r.id, "active")} className="rounded-lg bg-emerald-500 px-3 py-1.5 text-sm font-semibold text-white hover:bg-emerald-600 disabled:opacity-50">Approve</button>
+                <button type="button" onClick={() => onEditRep(r)} className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50">Edit</button>
               </li>
             ))}
           </ul>
@@ -208,7 +334,7 @@ function RepsTab({
         ) : (
           <ul className="divide-y">
             {active.map((r) => (
-              <li key={r.id} className="flex items-center gap-3 px-4 py-3">
+              <li key={r.id} className="flex items-center gap-2 px-4 py-3">
                 <div className="flex-1 min-w-0">
                   <div className="font-semibold text-slate-900">{r.display_name ?? "(no name)"}</div>
                   <div className="text-xs text-slate-400">{ago(r.created_at)}</div>
@@ -218,6 +344,7 @@ function RepsTab({
                   {r.role === "admin" ? "Make rep" : "Make admin"}
                 </button>
                 <button type="button" disabled={busy === r.id} onClick={() => setRepStatus(r.id, "suspended")} className="rounded-lg border border-red-200 px-3 py-1.5 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50">Suspend</button>
+                <button type="button" onClick={() => onEditRep(r)} className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50">Edit</button>
               </li>
             ))}
           </ul>
@@ -232,13 +359,14 @@ function RepsTab({
           </div>
           <ul className="divide-y">
             {suspended.map((r) => (
-              <li key={r.id} className="flex items-center gap-3 px-4 py-3">
+              <li key={r.id} className="flex items-center gap-2 px-4 py-3">
                 <div className="flex-1 min-w-0">
                   <div className="font-semibold text-slate-700">{r.display_name ?? "(no name)"}</div>
                   <div className="text-xs text-slate-400">{ago(r.created_at)}</div>
                 </div>
                 <Badge role={r.role} />
                 <button type="button" disabled={busy === r.id} onClick={() => setRepStatus(r.id, "active")} className="rounded-lg bg-slate-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-50">Reactivate</button>
+                <button type="button" onClick={() => onEditRep(r)} className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50">Edit</button>
               </li>
             ))}
           </ul>
@@ -251,17 +379,41 @@ function RepsTab({
           <h2 className="text-sm font-semibold text-slate-800">Send invite link</h2>
         </div>
         <div className="px-4 py-4 space-y-3">
+          {!hasRealSession && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              You are in demo mode. Sign in with a real account (admin@sunpath.dev) to send invites.
+            </div>
+          )}
           <form onSubmit={(e) => createInvite(e)} className="flex flex-col gap-2 sm:flex-row">
-            <input type="email" required placeholder="rep@example.com" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
-            <select value={inviteRole} onChange={(e) => setInviteRole(e.target.value as "rep" | "admin")} className="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+            <input
+              type="email"
+              required
+              placeholder="rep@example.com"
+              value={inviteEmail}
+              onChange={(e) => setInviteEmail(e.target.value)}
+              className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-400"
+            />
+            <select
+              value={inviteRole}
+              onChange={(e) => setInviteRole(e.target.value as "rep" | "admin")}
+              className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400"
+            >
               <option value="rep">rep</option>
               <option value="admin">admin</option>
             </select>
-            <button type="submit" disabled={inviteBusy || !inviteEmail.trim()} className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-600 disabled:opacity-50">
+            <button
+              type="submit"
+              disabled={inviteBusy || !inviteEmail.trim()}
+              className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-600 disabled:opacity-50"
+            >
               {inviteBusy ? "Generating…" : "Create invite"}
             </button>
           </form>
-          {inviteError && <p className="text-sm text-red-700">{inviteError}</p>}
+          {inviteError && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800 font-medium">
+              {inviteError}
+            </div>
+          )}
           {inviteUrl && (
             <div className="rounded-lg border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-800">
               <div className="font-semibold mb-1">Copy and send this link:</div>
@@ -300,16 +452,40 @@ function RepsTab({
 }
 
 // ---------------------------------------------------------------------------
+// Territory Tab
+// ---------------------------------------------------------------------------
+
+const ADAPTERS = [
+  { value: "scott-va", label: "Scott County, VA", stateFips: "51", countyFips: "169", state: "VA" },
+  { value: "russell-va", label: "Russell County, VA", stateFips: "51", countyFips: "167", state: "VA" },
+  { value: "washington-va", label: "Washington County, VA", stateFips: "51", countyFips: "195", state: "VA" },
+  { value: "tazewell-va", label: "Tazewell County, VA", stateFips: "51", countyFips: "185", state: "VA" },
+  { value: "buchanan-va", label: "Buchanan County, VA", stateFips: "51", countyFips: "027", state: "VA" },
+  { value: "lee-va", label: "Lee County, VA", stateFips: "51", countyFips: "105", state: "VA" },
+] as const;
+
+const COUNTY_NAMES: Record<string, string> = {
+  "51169": "Scott County",
+  "51167": "Russell County",
+  "51195": "Washington County",
+  "51185": "Tazewell County",
+  "51027": "Buchanan County",
+  "51105": "Lee County",
+};
+
+type AdapterValue = typeof ADAPTERS[number]["value"];
 
 function TerritoryTab() {
   const [counties, setCounties] = useState<CountyRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [rescoring, setRescoring] = useState<string | null>(null);
   const [rescoreMsg, setRescoreMsg] = useState<string | null>(null);
+  const [ingestAdapter, setIngestAdapter] = useState<AdapterValue>("scott-va");
+  const [ingesting, setIngesting] = useState(false);
+  const [ingestResult, setIngestResult] = useState<string | null>(null);
 
   useEffect(() => {
     void (async () => {
-      setLoading(true);
       const { data } = await supabase.from("admin_county_summary").select("*");
       setCounties((data as CountyRow[] | null) ?? []);
       setLoading(false);
@@ -332,8 +508,46 @@ function TerritoryTab() {
     setRescoring(null);
   };
 
-  const countyName = (state: string, fips: string) =>
-    COUNTY_NAMES[`${state === "VA" ? "51" : "?"}${fips}`] ?? `County ${fips}`;
+  const runIngest = async () => {
+    if (!SUPABASE_URL) return;
+    const adapter = ADAPTERS.find((a) => a.value === ingestAdapter);
+    if (!adapter) return;
+    setIngesting(true);
+    setIngestResult(null);
+    const token = (await supabase.auth.getSession()).data.session?.access_token;
+    if (!token) {
+      setIngestResult("Error: Sign in with a real account to run ingest.");
+      setIngesting(false);
+      return;
+    }
+    const t0 = Date.now();
+    try {
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/ingest-parcels`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({}),
+      });
+      const json = (await res.json()) as { ok?: boolean; seen?: number; upserted?: number; capped?: boolean; error?: string; details?: unknown };
+      const elapsed = Math.round((Date.now() - t0) / 1000);
+      if (res.ok && json.ok) {
+        setIngestResult(`Done in ${elapsed}s — seen ${json.seen ?? 0}, upserted ${json.upserted ?? 0}${json.capped ? " (hit 5k cap, run again for more)" : ""}.`);
+      } else {
+        setIngestResult(`Failed (${res.status}): ${json.error ?? "unknown error"}`);
+      }
+    } catch (err) {
+      setIngestResult(`Network error: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    setIngesting(false);
+    // Reload county data
+    const { data } = await supabase.from("admin_county_summary").select("*");
+    setCounties((data as CountyRow[] | null) ?? []);
+  };
+
+  const countyName = (stateFips: string, countyFips: string) =>
+    COUNTY_NAMES[`${stateFips}${countyFips}`] ?? `County ${countyFips}`;
+
+  const isScottVa = ingestAdapter === "scott-va";
+  const selectedAdapter = ADAPTERS.find((a) => a.value === ingestAdapter);
 
   return (
     <div className="space-y-4">
@@ -341,6 +555,56 @@ function TerritoryTab() {
         <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">{rescoreMsg}</div>
       )}
 
+      {/* Run ingest */}
+      <section className="rounded-xl border bg-white shadow-sm overflow-hidden">
+        <div className="px-4 py-3 border-b bg-slate-50">
+          <h2 className="text-sm font-semibold text-slate-800">Run parcel ingest</h2>
+          <p className="text-xs text-slate-500 mt-0.5">Incremental sync from VGIN (up to 5,000 new/changed parcels per run). For a full initial load of a new county, use GitHub Actions manually.</p>
+        </div>
+        <div className="px-4 py-4 space-y-3">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-slate-700 mb-1">County adapter</label>
+              <select
+                value={ingestAdapter}
+                onChange={(e) => setIngestAdapter(e.target.value as AdapterValue)}
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400"
+              >
+                {ADAPTERS.map((a) => (
+                  <option key={a.value} value={a.value}>{a.label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="sm:self-end">
+              <button
+                type="button"
+                disabled={ingesting || !isScottVa}
+                onClick={() => void runIngest()}
+                title={!isScottVa ? "Only Scott County adapter is deployed to edge functions. Other counties require GitHub Actions." : undefined}
+                className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-600 disabled:opacity-50 w-full sm:w-auto"
+              >
+                {ingesting ? "Running…" : "Run incremental ingest"}
+              </button>
+            </div>
+          </div>
+          {!isScottVa && (
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+              Edge function only deployed for Scott County VA. To ingest {selectedAdapter?.label}, trigger the{" "}
+              <a href={`${REPO}/actions/workflows/ingest-parcels.yml`} target="_blank" rel="noopener noreferrer" className="text-amber-700 hover:underline">
+                ingest-parcels GitHub Actions workflow ↗
+              </a>{" "}
+              manually with adapter <code className="font-mono">{ingestAdapter}</code>.
+            </div>
+          )}
+          {ingestResult && (
+            <div className={`rounded-lg border px-3 py-2 text-sm font-medium ${ingestResult.startsWith("Error") || ingestResult.startsWith("Failed") || ingestResult.startsWith("Network") ? "border-red-200 bg-red-50 text-red-800" : "border-emerald-200 bg-emerald-50 text-emerald-800"}`}>
+              {ingestResult}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Loaded counties */}
       <section className="rounded-xl border bg-white shadow-sm overflow-hidden">
         <div className="px-4 py-3 border-b bg-slate-50 flex items-center justify-between">
           <h2 className="text-sm font-semibold text-slate-800">Loaded counties</h2>
@@ -349,7 +613,7 @@ function TerritoryTab() {
         {loading ? (
           <p className="px-4 py-4 text-sm text-slate-400">Loading…</p>
         ) : counties.length === 0 ? (
-          <p className="px-4 py-4 text-sm text-slate-400">No parcel data loaded yet. Run the ingest script to populate counties.</p>
+          <p className="px-4 py-4 text-sm text-slate-400">No parcel data loaded yet. Run the ingest above to populate counties.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -360,14 +624,14 @@ function TerritoryTab() {
                   <th className="px-4 py-2 text-right">Owner-occ</th>
                   <th className="px-4 py-2 text-right">Has solar</th>
                   <th className="px-4 py-2">Last ingest</th>
-                  <th className="px-4 py-2">Last source update</th>
+                  <th className="px-4 py-2">Last source</th>
                   <th className="px-4 py-2" />
                 </tr>
               </thead>
               <tbody className="divide-y">
                 {counties.map((c) => {
                   const key = `${c.state_fips}-${c.county_fips}`;
-                  const name = countyName(c.state, c.county_fips);
+                  const name = countyName(c.state_fips, c.county_fips);
                   const ooPercent = c.parcel_count > 0 ? Math.round(c.owner_occupied_count / c.parcel_count * 100) : 0;
                   return (
                     <tr key={key} className="hover:bg-slate-50">
@@ -399,18 +663,23 @@ function TerritoryTab() {
         )}
       </section>
 
+      {/* GitHub Actions link */}
       <section className="rounded-xl border bg-white shadow-sm overflow-hidden">
         <div className="px-4 py-3 border-b bg-slate-50">
-          <h2 className="text-sm font-semibold text-slate-800">Ingest script reference</h2>
+          <h2 className="text-sm font-semibold text-slate-800">Full county load (GitHub Actions)</h2>
         </div>
         <div className="px-4 py-4 space-y-2 text-sm text-slate-700">
-          <p>To load a new county, run the parcel ingest script locally with your Supabase credentials:</p>
-          <pre className="rounded-lg bg-slate-900 text-emerald-400 px-4 py-3 text-xs overflow-x-auto whitespace-pre-wrap">
-            {`SUPABASE_URL=https://sclisaylpwnffkkyepow.supabase.co \\
-SUPABASE_SERVICE_ROLE_KEY=<key> \\
-npx tsx scripts/ingest-parcels.ts --county scott-va`}
-          </pre>
-          <p className="text-xs text-slate-500">Target counties in order: Scott VA → Russell VA → surrounding SW Virginia</p>
+          <p>For initial full loads (100k+ parcels), use the GitHub Actions workflow — no edge function 60s time limit:</p>
+          <a
+            href={`${REPO}/actions/workflows/ingest-parcels.yml`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-amber-700"
+          >
+            <span>Run ingest-parcels workflow</span>
+            <span className="text-slate-400">↗</span>
+          </a>
+          <p className="text-xs text-slate-500">Select adapter: scott-va, then optionally set limit or dry-run. Requires SUPABASE_SERVICE_ROLE_KEY in repo secrets.</p>
         </div>
       </section>
     </div>
@@ -418,28 +687,55 @@ npx tsx scripts/ingest-parcels.ts --county scott-va`}
 }
 
 // ---------------------------------------------------------------------------
+// System Tab
+// ---------------------------------------------------------------------------
+
+const DIRECT_CHECKS: ApiCheck[] = [
+  { name: "NOAA NWS", category: "direct", endpoint: "https://api.weather.gov/", latencyMs: null, ok: null, label: "Weather API (primary)" },
+  { name: "Supabase REST", category: "direct", endpoint: `${SUPABASE_URL ?? ""}/rest/v1/`, latencyMs: null, ok: null, label: "Database API" },
+];
+
+const EDGE_FN_CHECKS: ApiCheck[] = [
+  { name: "weather-now", category: "edge", endpoint: "weather-now", latencyMs: null, ok: null, label: "NWS weather proxy" },
+  { name: "pvwatts-fetch", category: "edge", endpoint: "pvwatts-fetch", latencyMs: null, ok: null, label: "NREL PVWatts v8" },
+  { name: "incentives-fetch", category: "edge", endpoint: "incentives-fetch", latencyMs: null, ok: null, label: "DSIRE incentives" },
+  { name: "rate-watch-eia", category: "edge", endpoint: "rate-watch-eia", latencyMs: null, ok: null, label: "EIA utility rates" },
+  { name: "census-fetch", category: "edge", endpoint: "census-fetch", latencyMs: null, ok: null, label: "US Census ACS" },
+  { name: "score-parcels", category: "edge", endpoint: "score-parcels", latencyMs: null, ok: null, label: "Knock scoring engine" },
+  { name: "geo-reverse", category: "edge", endpoint: "geo-reverse", latencyMs: null, ok: null, label: "GPS → county/state" },
+  { name: "ingest-parcels", category: "edge", endpoint: "ingest-parcels", latencyMs: null, ok: null, label: "VGIN parcel ingest" },
+  { name: "invite-create", category: "edge", endpoint: "invite-create", latencyMs: null, ok: null, label: "Invite link creation" },
+  { name: "approve-access", category: "edge", endpoint: "approve-access", latencyMs: null, ok: null, label: "Access request approval" },
+  { name: "solar-rooftop", category: "edge", endpoint: "solar-rooftop", latencyMs: null, ok: null, label: "Solar rooftop analysis" },
+  { name: "fema-flood-zone", category: "edge", endpoint: "fema-flood-zone", latencyMs: null, ok: null, label: "FEMA flood zone lookup" },
+];
+
+const EDGE_FUNCTIONS = [
+  "approve-access", "callback-submit", "census-fetch", "doorcard-pdf",
+  "fema-flood-zone", "forecast-fetch", "geo-reverse", "homeowner-export",
+  "incentives-fetch", "ingest-area-signals", "ingest-parcels", "invite-accept",
+  "invite-create", "pvwatts-fetch", "push-send", "rate-watch-eia",
+  "request-access", "rewarm-derive", "rewarm-push", "score-parcels",
+  "solar-rooftop", "triggers-callback-due", "triggers-property-sales",
+  "triggers-scan-permits", "weather-now",
+].sort();
 
 function SystemTab() {
-  const [apiChecks, setApiChecks] = useState<ApiCheck[]>([
-    { name: "NOAA NWS", url: "https://api.weather.gov/", latencyMs: null, ok: null, label: "Weather API" },
-    { name: "NREL PVWatts", url: "", latencyMs: null, ok: null, label: "Via edge fn" },
-    { name: "EIA v2", url: "", latencyMs: null, ok: null, label: "Via edge fn" },
-    { name: "US Census", url: "", latencyMs: null, ok: null, label: "Via edge fn" },
-    { name: "DSIRE", url: "", latencyMs: null, ok: null, label: "Via edge fn" },
-  ]);
+  const [directChecks, setDirectChecks] = useState<ApiCheck[]>(DIRECT_CHECKS);
+  const [edgeFnChecks, setEdgeFnChecks] = useState<ApiCheck[]>(EDGE_FN_CHECKS);
   const [checking, setChecking] = useState(false);
   const [auditLog, setAuditLog] = useState<AuditRow[]>([]);
   const [auditLoading, setAuditLoading] = useState(true);
   const [auditError, setAuditError] = useState<string | null>(null);
+  const [auditFilter, setAuditFilter] = useState("");
 
   useEffect(() => {
     void (async () => {
-      setAuditLoading(true);
       const { data, error } = await supabase
         .from("audit_log")
         .select("id,event,target_table,ip_addr,occurred_at,rep_id")
         .order("occurred_at", { ascending: false })
-        .limit(50);
+        .limit(100);
       if (error) {
         setAuditError(error.code === "42501" ? "Run migration 0030 to enable admin audit log access." : error.message);
       } else {
@@ -451,12 +747,16 @@ function SystemTab() {
 
   const runChecks = async () => {
     setChecking(true);
-    const updated = await Promise.all(
-      apiChecks.map(async (check) => {
-        if (!check.url) return { ...check, ok: null, latencyMs: null };
+
+    const token = (await supabase.auth.getSession()).data.session?.access_token;
+
+    // Direct browser checks
+    const updatedDirect = await Promise.all(
+      directChecks.map(async (check) => {
+        if (!check.endpoint) return { ...check, ok: false, latencyMs: 0 };
         const t0 = Date.now();
         try {
-          const res = await fetch(check.url, {
+          const res = await fetch(check.endpoint, {
             headers: { "User-Agent": "Sunpath/1.0 (admin health check; contact admin@sunpath.dev)" },
             signal: AbortSignal.timeout(8000),
           });
@@ -466,18 +766,61 @@ function SystemTab() {
         }
       })
     );
-    setApiChecks(updated);
+    setDirectChecks(updatedDirect);
+
+    // Edge function alive checks (GET → expect 405 or 401, anything but network error = deployed)
+    const updatedEdge = await Promise.all(
+      edgeFnChecks.map(async (check) => {
+        if (!SUPABASE_URL) return { ...check, ok: false, latencyMs: 0 };
+        const t0 = Date.now();
+        try {
+          const res = await fetch(`${SUPABASE_URL}/functions/v1/${check.endpoint}`, {
+            method: "GET",
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+            signal: AbortSignal.timeout(8000),
+          });
+          // 405 = method not allowed (function is alive, expects POST)
+          // 401 = unauthorized (function is alive, needs auth)
+          // 400 = bad request (function is alive, wrong params)
+          // 200 = alive and returned something
+          // 404 = function not deployed; 503/502 = gateway error
+          const alive = res.status !== 503 && res.status !== 502 && res.status !== 404;
+          return { ...check, ok: alive, latencyMs: Date.now() - t0 };
+        } catch {
+          return { ...check, ok: false, latencyMs: Date.now() - t0 };
+        }
+      })
+    );
+    setEdgeFnChecks(updatedEdge);
     setChecking(false);
   };
+
+  const exportAuditCsv = () => {
+    const rows = auditLog.filter((e) => !auditFilter || e.event.includes(auditFilter));
+    const header = "id,event,target_table,ip_addr,rep_id,occurred_at\n";
+    const csv = header + rows.map((e) =>
+      [e.id, e.event, e.target_table ?? "", e.ip_addr ?? "", e.rep_id ?? "", e.occurred_at].join(",")
+    ).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `sunpath-audit-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const eventTypes = [...new Set(auditLog.map((e) => e.event))].sort();
+  const filteredAudit = auditFilter ? auditLog.filter((e) => e.event === auditFilter) : auditLog;
 
   return (
     <div className="space-y-4">
 
-      {/* Edge functions */}
+      {/* Edge function status chips */}
       <section className="rounded-xl border bg-white shadow-sm overflow-hidden">
         <div className="px-4 py-3 border-b bg-slate-50 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-slate-800">Edge functions</h2>
-          <a href={`${SUPABASE_DASH}/functions`} target="_blank" rel="noopener noreferrer" className="text-xs text-amber-600 hover:underline">View in Supabase ↗</a>
+          <h2 className="text-sm font-semibold text-slate-800">Edge functions ({EDGE_FUNCTIONS.length} deployed)</h2>
+          <a href={`${SUPABASE_DASH}/functions`} target="_blank" rel="noopener noreferrer" className="text-xs text-amber-600 hover:underline">Supabase logs ↗</a>
         </div>
         <div className="px-4 py-3">
           <div className="flex flex-wrap gap-2">
@@ -488,53 +831,104 @@ function SystemTab() {
               </div>
             ))}
           </div>
-          <p className="mt-3 text-xs text-slate-400">All {EDGE_FUNCTIONS.length} functions deployed as of 2026-05-10. Check Supabase dashboard for live invocation logs.</p>
+          <p className="mt-3 text-xs text-slate-400">Last deployed 2026-05-10. Use the Supabase edge function log link above to view live invocations and errors.</p>
         </div>
       </section>
 
-      {/* External API health */}
+      {/* API connectivity */}
       <section className="rounded-xl border bg-white shadow-sm overflow-hidden">
         <div className="px-4 py-3 border-b bg-slate-50 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-slate-800">External API connectivity</h2>
-          <button type="button" disabled={checking} onClick={() => void runChecks()} className="rounded-lg border border-slate-200 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50">
-            {checking ? "Checking…" : "Run checks"}
+          <div>
+            <h2 className="text-sm font-semibold text-slate-800">API connectivity</h2>
+            <p className="text-xs text-slate-500 mt-0.5">Direct: checks from your browser. Edge fn: checks if the function is deployed and responding.</p>
+          </div>
+          <button type="button" disabled={checking} onClick={() => void runChecks()} className="shrink-0 rounded-lg border border-slate-200 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50">
+            {checking ? "Checking…" : "Run all checks"}
           </button>
         </div>
+
+        <div className="px-4 py-2 border-b bg-slate-50">
+          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Direct browser checks</div>
+        </div>
         <ul className="divide-y">
-          {apiChecks.map((c) => (
+          {directChecks.map((c) => (
             <li key={c.name} className="flex items-center gap-3 px-4 py-3">
               <StatusDot ok={c.ok} />
               <div className="flex-1">
                 <div className="text-sm font-medium text-slate-800">{c.name}</div>
                 <div className="text-xs text-slate-400">{c.label}</div>
               </div>
-              {c.latencyMs !== null && (
-                <span className="text-xs tabular-nums text-slate-500">{c.latencyMs}ms</span>
-              )}
+              {c.latencyMs !== null && <span className="text-xs tabular-nums text-slate-500">{c.latencyMs}ms</span>}
               {c.ok === null && <span className="text-xs text-slate-400">—</span>}
               {c.ok === false && c.latencyMs !== null && <span className="text-xs text-red-600 font-medium">Failed</span>}
               {c.ok === true && <span className="text-xs text-emerald-600 font-medium">OK</span>}
             </li>
           ))}
         </ul>
-        <div className="px-4 py-3 border-t bg-slate-50">
-          <p className="text-xs text-slate-500">NREL, EIA, Census, and DSIRE are called via edge functions — direct browser checks not applicable. Use Supabase function logs to diagnose those.</p>
+
+        <div className="px-4 py-2 border-b border-t bg-slate-50">
+          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Edge function alive checks</div>
         </div>
+        <ul className="divide-y">
+          {edgeFnChecks.map((c) => (
+            <li key={c.name} className="flex items-center gap-3 px-4 py-3">
+              <StatusDot ok={c.ok} />
+              <div className="flex-1">
+                <div className="text-sm font-medium text-slate-800 font-mono">{c.name}</div>
+                <div className="text-xs text-slate-400">{c.label}</div>
+              </div>
+              {c.latencyMs !== null && <span className="text-xs tabular-nums text-slate-500">{c.latencyMs}ms</span>}
+              {c.ok === null && <span className="text-xs text-slate-400">—</span>}
+              {c.ok === false && c.latencyMs !== null && <span className="text-xs text-red-600 font-medium">Unreachable</span>}
+              {c.ok === true && <span className="text-xs text-emerald-600 font-medium">Alive</span>}
+            </li>
+          ))}
+        </ul>
       </section>
 
       {/* Audit log */}
       <section className="rounded-xl border bg-white shadow-sm overflow-hidden">
-        <div className="px-4 py-3 border-b bg-slate-50 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-slate-800">Audit log</h2>
-          <span className="text-xs text-slate-500">Last 50 events</span>
+        <div className="px-4 py-3 border-b bg-slate-50 flex items-center justify-between gap-2">
+          <div>
+            <h2 className="text-sm font-semibold text-slate-800">Audit log</h2>
+            <p className="text-xs text-slate-500 mt-0.5">Security events: rate limit hits, invite actions, access approvals, rep status changes.</p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {auditLog.length > 0 && (
+              <button type="button" onClick={exportAuditCsv} className="rounded-lg border border-slate-200 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50">
+                Export CSV
+              </button>
+            )}
+          </div>
         </div>
+
+        {auditLog.length > 0 && !auditError && (
+          <div className="px-4 py-2 border-b bg-slate-50 flex items-center gap-2">
+            <label className="text-xs text-slate-600 shrink-0">Filter by event:</label>
+            <select
+              value={auditFilter}
+              onChange={(e) => setAuditFilter(e.target.value)}
+              className="rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-900 bg-white focus:outline-none focus:ring-1 focus:ring-amber-400"
+            >
+              <option value="">All events</option>
+              {eventTypes.map((t) => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+            {auditFilter && (
+              <button type="button" onClick={() => setAuditFilter("")} className="text-xs text-slate-500 hover:text-slate-700">Clear</button>
+            )}
+            <span className="text-xs text-slate-400 ml-auto">{filteredAudit.length} events</span>
+          </div>
+        )}
+
         {auditLoading ? (
           <p className="px-4 py-4 text-sm text-slate-400">Loading…</p>
         ) : auditError ? (
           <div className="px-4 py-4">
             <p className="text-sm text-amber-700">{auditError}</p>
           </div>
-        ) : auditLog.length === 0 ? (
+        ) : filteredAudit.length === 0 ? (
           <p className="px-4 py-4 text-sm text-slate-400">No audit events recorded yet.</p>
         ) : (
           <div className="overflow-x-auto">
@@ -548,7 +942,7 @@ function SystemTab() {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {auditLog.map((e) => (
+                {filteredAudit.map((e) => (
                   <tr key={e.id} className="hover:bg-slate-50">
                     <td className="px-4 py-2 font-mono text-xs text-slate-700">{e.event}</td>
                     <td className="px-4 py-2 text-xs text-slate-500">{e.target_table ?? "—"}</td>
@@ -566,6 +960,8 @@ function SystemTab() {
   );
 }
 
+// ---------------------------------------------------------------------------
+// Docs Tab
 // ---------------------------------------------------------------------------
 
 function DocsTab() {
@@ -607,6 +1003,7 @@ function DocsTab() {
       items: [
         { label: "Repository", href: REPO, desc: "Source code" },
         { label: "Actions (CI/CD)", href: `${REPO}/actions`, desc: "Build and deploy status" },
+        { label: "Ingest workflow", href: `${REPO}/actions/workflows/ingest-parcels.yml`, desc: "Manual parcel ingest trigger" },
         { label: "Issues", href: `${REPO}/issues`, desc: "Bug reports and feature requests" },
         { label: "Secrets & Variables", href: `${REPO}/settings/secrets/actions`, desc: "GitHub Actions secrets (NREL_API_KEY, etc.)" },
       ],
@@ -666,10 +1063,19 @@ export function AdminRoute() {
   const [busy, setBusy] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [nowMs] = useState(() => Date.now());
+  const [editRep, setEditRep] = useState<RepRow | null>(null);
+  const [hasRealSession, setHasRealSession] = useState(false);
 
   useEffect(() => {
     if (rep && rep.role !== "admin") { void navigate("/home"); }
   }, [rep, navigate]);
+
+  useEffect(() => {
+    void (async () => {
+      const session = (await supabase.auth.getSession()).data.session;
+      setHasRealSession(!!session?.access_token);
+    })();
+  }, [rep?.id]);
 
   const refresh = useCallback(async () => {
     const [repsRes, reqRes, invRes] = await Promise.all([
@@ -702,6 +1108,16 @@ export function AdminRoute() {
     setBusy(null);
   };
 
+  const updateRep = async (id: string, patch: { display_name?: string; role?: string; status?: string }) => {
+    const update: Record<string, string> = {};
+    if (patch.display_name !== undefined) update.display_name = patch.display_name;
+    if (patch.role !== undefined) update.role = patch.role;
+    if (patch.status !== undefined) update.status = patch.status;
+    await supabase.from("rep").update(update).eq("id", id);
+    await refresh();
+    // Keep modal open so admin can see the saved state
+  };
+
   const decideRequest = async (requestId: string, decision: "approve" | "reject") => {
     if (!SUPABASE_URL) return;
     setBusy(requestId);
@@ -719,20 +1135,29 @@ export function AdminRoute() {
 
   const createInvite = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!SUPABASE_URL) return;
+    if (!SUPABASE_URL) { setInviteError("Supabase URL not configured."); return; }
     setInviteBusy(true);
     setInviteError(null);
     setInviteUrl(null);
     const token = (await supabase.auth.getSession()).data.session?.access_token;
-    if (!token) { setInviteError("Sign in with a real account to send invites."); setInviteBusy(false); return; }
-    const res = await fetch(`${SUPABASE_URL}/functions/v1/invite-create`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ email: inviteEmail.trim(), role: inviteRole }),
-    });
-    const json = (await res.json()) as { invite_url?: string; error?: string };
-    if (!res.ok || !json.invite_url) { setInviteError(json.error ?? `Failed (${res.status})`); }
-    else { setInviteUrl(json.invite_url); setInviteEmail(""); await refresh(); }
+    if (!token) { setInviteError("Sign in with a real account (not demo mode) to send invites."); setInviteBusy(false); return; }
+    try {
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/invite-create`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ email: inviteEmail.trim(), role: inviteRole }),
+      });
+      const json = (await res.json()) as { invite_url?: string; error?: string };
+      if (!res.ok || !json.invite_url) {
+        setInviteError(json.error ?? `Server returned ${res.status}`);
+      } else {
+        setInviteUrl(json.invite_url);
+        setInviteEmail("");
+        await refresh();
+      }
+    } catch (err) {
+      setInviteError(`Network error: ${err instanceof Error ? err.message : String(err)}`);
+    }
     setInviteBusy(false);
   };
 
@@ -754,6 +1179,8 @@ export function AdminRoute() {
 
   return (
     <div className="flex flex-1 min-h-0 flex-col overflow-y-auto bg-slate-50">
+      <EditRepModal rep={editRep} onClose={() => setEditRep(null)} onSave={updateRep} />
+
       <header className="border-b bg-white px-4 py-4 flex items-center justify-between shrink-0">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Admin Portal</h1>
@@ -799,13 +1226,15 @@ export function AdminRoute() {
             allReps={allReps} requests={requests} invites={invites}
             loading={loading} busy={busy}
             inviteEmail={inviteEmail} inviteRole={inviteRole}
-            inviteBusy={inviteBusy} inviteError={inviteError} inviteUrl={inviteUrl} nowMs={nowMs}
+            inviteBusy={inviteBusy} inviteError={inviteError} inviteUrl={inviteUrl}
+            nowMs={nowMs} hasRealSession={hasRealSession}
             setInviteEmail={setInviteEmail} setInviteRole={setInviteRole}
             setRepStatus={(id, s) => void setRepStatus(id, s)}
             setRepRole={(id, r) => void setRepRole(id, r)}
             decideRequest={(id, d) => void decideRequest(id, d)}
             createInvite={(e) => void createInvite(e)}
             revokeInvite={(id) => void revokeInvite(id)}
+            onEditRep={setEditRep}
           />
         )}
         {tab === "territory" && <TerritoryTab />}
