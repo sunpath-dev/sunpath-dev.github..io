@@ -57,6 +57,16 @@ const SAT_STYLE: maplibregl.StyleSpecification = {
   layers: [{ id: "satellite", type: "raster", source: "satellite" }],
 };
 
+// Maptiler vector tiles — shows building footprints natively at z≥14.
+// Falls back to OSM raster if the key is not set.
+const MAPTILER_KEY: string | undefined = (import.meta.env.VITE_MAPTILER_KEY as string) || undefined;
+const STREET_STYLE: maplibregl.StyleSpecification | string = MAPTILER_KEY
+  ? `https://api.maptiler.com/maps/streets-v2/style.json?key=${MAPTILER_KEY}`
+  : OSM_STYLE;
+const SAT_STYLE_FULL: maplibregl.StyleSpecification | string = MAPTILER_KEY
+  ? `https://api.maptiler.com/maps/hybrid/style.json?key=${MAPTILER_KEY}`
+  : SAT_STYLE;
+
 function buildMapFilter(
   minScore: number,
   maxScore: number,
@@ -123,7 +133,7 @@ export function TerritoryRoute() {
     if (!containerRef.current || mapRef.current) return;
     const map = new maplibregl.Map({
       container: containerRef.current,
-      style: OSM_STYLE,
+      style: STREET_STYLE,
       center: DEFAULT_CENTER,
       zoom: DEFAULT_ZOOM,
       attributionControl: { compact: true },
@@ -407,7 +417,7 @@ export function TerritoryRoute() {
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    const newStyle = isSatellite ? SAT_STYLE : OSM_STYLE;
+    const newStyle = isSatellite ? SAT_STYLE_FULL : STREET_STYLE;
     map.setStyle(newStyle);
     map.once("style.load", () => {
       if (!map.getSource(PARCEL_SOURCE)) {
