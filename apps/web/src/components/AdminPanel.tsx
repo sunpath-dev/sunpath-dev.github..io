@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase.js";
+import { useAuth } from "@/lib/auth.js";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 
@@ -60,7 +61,7 @@ function SectionHeader({ title, count }: { title: string; count?: number }) {
 }
 
 export function AdminPanel() {
-  const [me, setMe] = useState<{ role?: string; id?: string } | null>(null);
+  const { rep } = useAuth();
   const [allReps, setAllReps] = useState<RepRow[]>([]);
   const [requests, setRequests] = useState<AccessRequest[]>([]);
   const [invites, setInvites] = useState<InviteRow[]>([]);
@@ -71,16 +72,6 @@ export function AdminPanel() {
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
   const [actionBusy, setActionBusy] = useState<string | null>(null);
   const [nowMs] = useState(() => Date.now());
-
-  useEffect(() => {
-    void (async () => {
-      const { data: auth } = await supabase.auth.getUser();
-      const userId = auth.user?.id;
-      if (!userId) return;
-      const { data } = await supabase.from("rep").select("id, role").eq("auth_user_id", userId).maybeSingle();
-      setMe(data ?? {});
-    })();
-  }, []);
 
   const refresh = async () => {
     const [repsRes, reqRes, invRes] = await Promise.all([
@@ -94,8 +85,8 @@ export function AdminPanel() {
   };
 
   useEffect(() => {
-    if (me?.role === "admin") void refresh();
-  }, [me]);
+    if (rep?.role === "admin") void refresh();
+  }, [rep?.role]);
 
   const setRepStatus = async (repId: string, status: string) => {
     setActionBusy(repId);
@@ -155,7 +146,7 @@ export function AdminPanel() {
     await refresh();
   };
 
-  if (!me || me.role !== "admin") return null;
+  if (!rep || rep.role !== "admin") return null;
 
   const pendingReps = allReps.filter((r) => r.status === "pending");
   const activeReps = allReps.filter((r) => r.status === "active");
