@@ -50,7 +50,13 @@ async function signInWithProvider(provider: "google" | "azure"): Promise<void> {
 }
 
 async function signOut(): Promise<void> {
+  localStorage.removeItem(POC_KEY);
   await supabase.auth.signOut();
+}
+
+export function enterAsPoc(): void {
+  localStorage.setItem(POC_KEY, "1");
+  window.location.reload();
 }
 
 // Bootstrap: resolve initial session synchronously if available.
@@ -59,9 +65,10 @@ const initialReady = new Promise<void>((resolve) => {
   resolveInitial = resolve;
 });
 
-// DEV-only mock rep — active admin so all features are accessible without OAuth.
-// import.meta.env.DEV is false in production builds; this code never ships live.
-const DEV_REP: RepInfo = { id: "dev-local", role: "admin", status: "active" };
+// POC bypass: localStorage flag set by the "Enter as guest" button.
+// Lets the app be used before OAuth providers are configured in Supabase.
+const POC_KEY = "sunpath:poc-bypass";
+const POC_REP: RepInfo = { id: "poc-guest", role: "admin", status: "active" };
 
 (async () => {
   const { data } = await supabase.auth.getSession();
@@ -69,8 +76,8 @@ const DEV_REP: RepInfo = { id: "dev-local", role: "admin", status: "active" };
   let rep: RepInfo | null = null;
   if (session) {
     rep = await fetchRep(session.user.id);
-  } else if (import.meta.env.DEV) {
-    rep = DEV_REP;
+  } else if (localStorage.getItem(POC_KEY) === "1") {
+    rep = POC_REP;
   }
   cached = { session, rep, loading: false, signInWithProvider, signOut };
   resolveInitial?.();

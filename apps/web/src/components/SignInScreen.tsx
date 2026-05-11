@@ -1,4 +1,4 @@
-import { useAuth } from "@/lib/auth.js";
+import { useAuth, enterAsPoc } from "@/lib/auth.js";
 
 export function SignInScreen() {
   const { signInWithProvider } = useAuth();
@@ -73,6 +73,14 @@ export function SignInScreen() {
               Request it →
             </a>
           </p>
+
+          <button
+            type="button"
+            onClick={enterAsPoc}
+            className="mt-2 w-full rounded-xl border border-dashed border-amber-300 bg-amber-50 px-6 py-3 text-sm font-semibold text-amber-700 hover:bg-amber-100"
+          >
+            Enter as guest (POC)
+          </button>
         </div>
       </div>
     </div>
