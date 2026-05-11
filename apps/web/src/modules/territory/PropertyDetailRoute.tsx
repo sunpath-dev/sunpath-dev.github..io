@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, startTransition } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/lib/supabase.js";
 import { SubNav } from "@/components/SubNav.js";
@@ -45,7 +45,7 @@ export function PropertyDetailRoute() {
       const lon = parseFloat(parts[1] ?? "0");
       const address = addressParam ?? `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
       const parcel: ParcelDetail = { id, address, state: "", lat, lon, score: -1, existing: false };
-      setState({ status: "ok", parcel });
+      startTransition(() => setState({ status: "ok", parcel }));
       saveRecent(id, address);
       return;
     }
