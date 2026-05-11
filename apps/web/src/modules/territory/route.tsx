@@ -536,9 +536,7 @@ export function TerritoryRoute() {
         </button>
       </div>
 
-      <div className="relative flex-1 min-h-0 overflow-hidden bg-slate-100">
-      {/* Full-screen map */}
-      <div ref={containerRef} className="absolute inset-0 bg-slate-100" />
+      <div ref={containerRef} className="relative flex-1 min-h-0 overflow-hidden bg-slate-100">
 
       {/* Floating top panel — search bar + legend/action row + optional panels */}
       <div className="absolute left-2 right-2 top-2 z-10 flex flex-col gap-1.5">
