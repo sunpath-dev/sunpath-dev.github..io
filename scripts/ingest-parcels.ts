@@ -43,7 +43,7 @@ function parseArgs(argv: string[]): Args {
 function pickAdapter(name: string): ParcelAdapter {
   switch (name) {
     case "scott-va": {
-      const endpoint = process.env.VGIN_PARCELS_URL;
+      const endpoint = process.env.VGIN_ADDRESSES_URL ?? process.env.VGIN_PARCELS_URL;
       return endpoint
         ? createScottCountyVaAdapter({ endpoint })
         : scottCountyVaAdapter;

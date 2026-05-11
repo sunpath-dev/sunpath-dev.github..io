@@ -3,15 +3,12 @@
  * FIPS: state=51, county=169 (Scott County).
  *
  * Source strategy:
- *   Virginia publishes a statewide parcel layer through VGIN (Virginia
- *   Geographic Information Network). The exact FeatureServer URL has shifted
- *   over the years — most recently it has lived under
- *   `vginmaps.vdem.virginia.gov` / `vgin.vdem.virginia.gov`. Rather than hard-
- *   code a URL we may have to chase, the adapter accepts an `endpoint` override
- *   in the options, and exposes the field map it expects so the runner can
- *   verify against the live schema before a full run.
+ *   The VGIN VA_Parcels statewide layer has geometry only (no addresses, no
+ *   assessed values). Instead we use the VGIN VA_Address_Points layer, which
+ *   carries FULLADDR + PO_NAME + ZIP_5 + Point geometry for every addressed
+ *   location in Virginia, including all 14k+ Scott County sites.
  *
- *   Fallback: a per-county static GeoJSON dump at `data/scott-va.geojson`.
+ *   Assessed values / year-built come from a county CAMA extract (separate step).
  *
  * NEVER call this from the browser — adapters run inside the seeding script
  * (`scripts/ingest-parcels.ts`) and Edge Functions only. (See design §6.)
@@ -27,100 +24,32 @@ import {
 import { fetchArcGisFeatures, type ArcGisFeature } from "../src/arcgis.js";
 
 /**
- * Default VGIN statewide parcel layer URL. As of the latest published portal
- * directory; will be revalidated at ingest time. Override via constructor.
+ * VGIN statewide address-points layer. Point geometry + full address per site.
+ * Filter to Scott County via FIPS = '51169'.
  */
-const DEFAULT_VGIN_PARCELS_URL =
-  "https://vginmaps.vdem.virginia.gov/arcgis/rest/services/VA_Base_Layers/VA_Parcels/FeatureServer/0";
+const DEFAULT_VGIN_ADDRESSES_URL =
+  "https://vginmaps.vdem.virginia.gov/arcgis/rest/services/VA_Base_Layers/VA_Address_Points/FeatureServer/0";
 
 const META: ParcelAdapterMeta = {
-  source: "VGIN statewide parcel layer (Scott County subset)",
+  source: "VGIN VA_Address_Points (Scott County, FIPS 51169)",
   stateFips: "51",
   countyFips: "169",
   notes:
-    "VGIN aggregates county parcels statewide. License: open data per the VGIN data sharing policy. Always re-verify the FeatureServer URL before a production run.",
+    "VGIN address-point layer: ~14k addressed locations with Point geometry, " +
+    "FULLADDR, PO_NAME, ZIP_5. No assessed-value or year-built — those require " +
+    "a separate CAMA extract from the Scott County Commissioner of the Revenue.",
 };
 
-/**
- * Field map from VGIN feature properties → Parcel. VGIN's column names are
- * fairly stable but vary slightly across counties and refresh cycles; this map
- * is the place to update if upstream renames a column.
- */
-const FIELDS = {
-  pin: ["PIN", "ParcelID", "PARCELID", "GPIN"],
-  address: ["LocAddress", "SitusAddress", "ADDRESS", "PropertyAd"],
-  city: ["LocCity", "SitusCity", "CITY"],
-  zip: ["LocZip", "SitusZip", "ZIP"],
-  county_fips: ["FIPS", "CountyFIPS", "COUNTY_FIPS"],
-  acres: ["Acres", "ACREAGE"],
-  year_built: ["YearBuilt", "YR_BUILT"],
-  assessed: ["AssessedValue", "TotalValue", "ASMT_VAL"],
-} as const;
-
-function pick<T = unknown>(
-  props: Record<string, unknown>,
-  keys: readonly string[],
-): T | undefined {
-  for (const k of keys) {
-    if (props[k] !== undefined && props[k] !== null && props[k] !== "") {
-      return props[k] as T;
-    }
-  }
-  return undefined;
-}
-
-function centroidFromGeometry(
-  geom: ArcGisFeature["geometry"],
-): { type: "Point"; coordinates: [number, number] } | null {
-  if (!geom) return null;
-  if (geom.type === "Point") {
-    const c = geom.coordinates as [number, number];
-    return { type: "Point", coordinates: [c[0], c[1]] };
-  }
-  // For Polygon / MultiPolygon take the bounding-box midpoint — good enough
-  // for map placement; PostGIS can recompute true centroid server-side later.
-  let minX = Infinity;
-  let maxX = -Infinity;
-  let minY = Infinity;
-  let maxY = -Infinity;
-  const visit = (p: unknown): void => {
-    if (
-      Array.isArray(p) &&
-      typeof p[0] === "number" &&
-      typeof p[1] === "number"
-    ) {
-      const [x, y] = p as [number, number];
-      if (x < minX) minX = x;
-      if (x > maxX) maxX = x;
-      if (y < minY) minY = y;
-      if (y > maxY) maxY = y;
-      return;
-    }
-    if (Array.isArray(p)) for (const c of p) visit(c);
-  };
-  visit(geom.coordinates);
-  if (minX === Infinity) return null;
-  return {
-    type: "Point",
-    coordinates: [(minX + maxX) / 2, (minY + maxY) / 2],
-  };
-}
-
-function parsePostalCode(raw: unknown): string | null {
-  if (typeof raw !== "string" && typeof raw !== "number") return null;
-  const s = String(raw).trim();
-  const m = /^(\d{5})(?:-?(\d{4}))?$/.exec(s);
-  if (!m) return null;
-  const five = m[1] ?? "";
-  const four = m[2];
-  return four ? `${five}-${four}` : five;
+function formatZip(raw: unknown): string | null {
+  if (raw == null || raw === "") return null;
+  const n = typeof raw === "number" ? raw : parseInt(String(raw), 10);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return String(n).padStart(5, "0");
 }
 
 export interface ScottCountyAdapterOptions {
   /** Override the default VGIN FeatureServer URL. */
   endpoint?: string;
-  /** ArcGIS where clause used to scope to Scott County (FIPS 169). */
-  where?: string;
   /** Page size for the FeatureServer query. */
   pageSize?: number;
   fetcher?: typeof fetch;
@@ -129,15 +58,14 @@ export interface ScottCountyAdapterOptions {
 export function createScottCountyVaAdapter(
   options: ScottCountyAdapterOptions = {},
 ): ParcelAdapter {
-  const endpoint = options.endpoint ?? DEFAULT_VGIN_PARCELS_URL;
-  const where = options.where ?? "FIPS = '51169' OR CountyFIPS = '51169'";
+  const endpoint = options.endpoint ?? DEFAULT_VGIN_ADDRESSES_URL;
 
   return {
     meta: META,
     fetchAll() {
       return fetchArcGisFeatures({
         url: endpoint,
-        where,
+        where: "FIPS = '51169'",
         pageSize: options.pageSize,
         fetcher: options.fetcher,
       });
@@ -145,33 +73,38 @@ export function createScottCountyVaAdapter(
     normalize(raw: ParcelRaw): Parcel | null {
       const feature = raw as unknown as ArcGisFeature;
       const props = feature?.properties ?? {};
-      const externalId = pick<string>(props, FIELDS.pin);
+
+      const externalId = props["ADDPTKEY"];
       if (!externalId) return null;
-      const address = pick<string>(props, FIELDS.address);
-      if (!address) return null;
-      const city = pick<string>(props, FIELDS.city) ?? "Gate City";
-      const postal = parsePostalCode(pick(props, FIELDS.zip));
+
+      const fullAddr = props["FULLADDR"];
+      if (!fullAddr || typeof fullAddr !== "string" || !fullAddr.trim()) return null;
+
+      // PO_NAME is the post-office city; fall back to MUNICIPALITY, then county name.
+      const rawCity =
+        (props["PO_NAME"] as string | undefined)?.trim() ||
+        (props["MUNICIPALITY"] as string | undefined)?.trim() ||
+        "Scott County";
+      const city = rawCity || "Scott County";
+
+      const postal = formatZip(props["ZIP_5"]);
       if (!postal) return null;
-      const centroid = centroidFromGeometry(feature.geometry);
-      if (!centroid) return null;
-      const yearBuilt = pick<number>(props, FIELDS.year_built);
-      const assessed = pick<number>(props, FIELDS.assessed);
+
+      // Address-points geometry is already a Point.
+      const geom = feature.geometry;
+      if (!geom || geom.type !== "Point") return null;
+      const [lon, lat] = geom.coordinates as [number, number];
+      if (!isFinite(lon) || !isFinite(lat)) return null;
 
       const candidate = {
         external_id: String(externalId),
         state_fips: "51",
         county_fips: "169",
-        address_line1: String(address).trim(),
-        city: String(city).trim(),
+        address_line1: fullAddr.trim(),
+        city,
         state: "VA",
         postal_code: postal,
-        centroid,
-        year_built:
-          typeof yearBuilt === "number" && Number.isFinite(yearBuilt)
-            ? Math.trunc(yearBuilt)
-            : undefined,
-        assessed_value_usd:
-          typeof assessed === "number" && assessed >= 0 ? assessed : undefined,
+        centroid: { type: "Point" as const, coordinates: [lon, lat] as [number, number] },
         has_existing_solar: false,
       };
 
