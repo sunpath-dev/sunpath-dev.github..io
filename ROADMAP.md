@@ -110,6 +110,25 @@ The property dashboard is the heart of the app. This sprint completes it.
 
 ---
 
+## Coming up — Phase 6.8: Admin Portal
+
+A web-based operator console for account management, data-feed monitoring, and internal documentation. Accessible at `/admin` (admin-role gate). Designed for a single operator who needs visibility into the backend without going to the Supabase dashboard.
+
+| Item | Description | Status |
+|------|-------------|--------|
+| 6.8-A | **Account management** — view all reps (status, role, last seen), approve/suspend/remove accounts, change roles. Replaces the embedded `AdminPanel` widget in Settings with a full-page experience. | Planned |
+| 6.8-B | **Access request queue** — pending requests from the `/request-access` form, with approve/reject and email notification. | Planned |
+| 6.8-C | **Invite management** — create invite links for specific emails, view pending/accepted/expired/revoked invites, one-click revoke. | Planned |
+| 6.8-D | **Data feed health dashboard** — one row per external API (NOAA NWS, NREL, EIA, DSIRE, Census, Overpass, Geocoder). Shows: last successful call, last error, avg response time (last 24h), rate-limit status. Calls a `/admin/health` edge function that probes each feed. | Planned |
+| 6.8-E | **API reference doc viewer** — `/admin/docs/apis` renders an in-app Markdown doc listing every integrated API: what data we get, which fields map to which UI elements, rate limits, auth method, fallback behavior. Kept in `docs/apis.md`. | Planned |
+| 6.8-F | **Internal docs viewer** — `/admin/docs` renders all files in the `docs/` folder (design spec, whitepaper, troubleshooting guide, ADRs) as formatted Markdown pages. No external hosting required. | Planned |
+| 6.8-G | **Troubleshooting runbook** — `docs/troubleshooting.md` covering: map not loading, parcel data empty, weather fails, bill OCR fails, push notifications not firing, OAuth not working, edge function errors (with Supabase log links). | Planned |
+| 6.8-H | **Audit log viewer** — paginated table of `audit_log` entries filtered by rep, table, or time range. Useful for debugging "who changed what." | Planned |
+| 6.8-I | **Edge function invocation log** — direct link to Supabase function logs per function with last 50 invocations and status codes. Opens in new tab (no embedding needed). | Planned |
+| 6.8-J | **Admin nav guard** — `/admin/*` redirects non-admins to `/home`. Admin link appears in the About page for admins only. | Planned |
+
+---
+
 ## Coming up — Phase 7: Intelligence Layer
 
 Once Phase 6 is complete and there's 4+ weeks of rep data, these AI features activate.

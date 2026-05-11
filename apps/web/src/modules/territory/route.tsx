@@ -129,8 +129,9 @@ export function TerritoryRoute() {
       attributionControl: { compact: true },
     });
     // Flex containers may not have final pixel dimensions when useEffect fires.
-    // requestAnimationFrame waits for the next paint so MapLibre gets real dimensions.
+    // Belt-and-suspenders: rAF for first paint, 200ms for Safari iOS late flex layout.
     requestAnimationFrame(() => { map.resize(); });
+    setTimeout(() => { map.resize(); }, 200);
     map.addControl(new maplibregl.NavigationControl({ visualizePitch: false }), "bottom-right");
     map.addControl(
       new maplibregl.GeolocateControl({
@@ -535,7 +536,7 @@ export function TerritoryRoute() {
         </button>
       </div>
 
-      <div className="relative flex-1 overflow-hidden bg-slate-100">
+      <div className="relative flex-1 min-h-0 overflow-hidden bg-slate-100">
       {/* Full-screen map */}
       <div ref={containerRef} className="absolute inset-0 bg-slate-100" />
 
