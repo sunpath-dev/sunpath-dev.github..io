@@ -178,7 +178,7 @@ interface NoteRow {
 }
 
 export function ParcelDetailSheet({ parcel, onClose, asPage = false }: Props) {
-  const { session, rep } = useAuth();
+  const { rep } = useAuth();
   const navigate = useNavigate();
 
   const [incentives, setIncentives] = useState<IncentivesResponse | null>(null);

@@ -50,7 +50,7 @@ function manualToFields(form: ManualForm): BillFields {
 }
 
 export function BillCaptureRoute() {
-  const { session, rep } = useAuth();
+  const { rep } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const linkedParcelId = searchParams.get("parcel_id");
