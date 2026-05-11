@@ -190,7 +190,7 @@ export function ReportsRoute() {
     setEvents(rows);
     setPrevEvents((prev.data ?? []) as DoorEvent[]);
     setLoading(false);
-  }, [rep?.id]);
+  }, [rep]);
 
   useEffect(() => { void load(period); }, [period, load]);
 
@@ -220,15 +220,6 @@ export function ReportsRoute() {
     ? Math.round(((callbacks + sits + sales) / total) * 100)
     : 0;
   const saleRate = total > 0 ? ((sales / total) * 100).toFixed(1) : "—";
-
-  // Daily breakdown for sparkline (last 7 days)
-  const dailyMap: Record<string, number> = {};
-  if (period === "week" || period === "month") {
-    for (const e of events) {
-      const day = e.occurred_at.slice(0, 10);
-      dailyMap[day] = (dailyMap[day] ?? 0) + 1;
-    }
-  }
 
   const exportCsv = () => {
     const header = "date,time,address,outcome\n";
