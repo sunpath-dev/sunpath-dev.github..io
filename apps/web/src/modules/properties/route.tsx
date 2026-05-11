@@ -111,7 +111,7 @@ export function PropertiesRoute() {
                   onClick={() => navigate(`/properties/${r.id}`)}
                   className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-amber-50 active:bg-amber-100"
                 >
-                  <span className="w-4 shrink-0 text-center text-xs font-semibold text-slate-400">{i + 1}</span>
+                  <span className="w-4 shrink-0 text-center text-xs font-semibold text-slate-600">{i + 1}</span>
                   <ScoreDot score={r.score} />
                   <span className="flex-1 truncate text-sm font-medium text-slate-900">{r.address}</span>
                   <span className="shrink-0 text-xs font-semibold text-amber-600">{r.score}</span>

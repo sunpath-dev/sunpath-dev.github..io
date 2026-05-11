@@ -630,7 +630,7 @@ export function ParcelDetailSheet({ parcel, onClose, asPage = false }: Props) {
           {/* PROPERTY OWNER */}
           {!parcel.id.startsWith("geo:") && (
             <section className="mb-2 rounded-xl border bg-white p-3">
-              <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-700">
                 Property Owner
               </h3>
               {ownerRow ? (
@@ -659,7 +659,7 @@ export function ParcelDetailSheet({ parcel, onClose, asPage = false }: Props) {
 
         {/* LOCATION & RISK */}
         <section className="mb-2 rounded-xl border bg-white p-3">
-          <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
+          <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-700">
             Location & Risk
           </h3>
           <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
@@ -692,7 +692,7 @@ export function ParcelDetailSheet({ parcel, onClose, asPage = false }: Props) {
         {/* HOME FACTS */}
         {hasHomeFacts ? (
           <section className="mb-2 rounded-xl border bg-white p-3">
-            <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Home Facts</h3>
+            <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-700">Home Facts</h3>
             <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-900">
               {yearBuilt !== undefined ? (
                 <>
@@ -736,7 +736,7 @@ export function ParcelDetailSheet({ parcel, onClose, asPage = false }: Props) {
         {/* AREA CONTEXT (Census) */}
         {census ? (
           <section className="mb-2 rounded-xl border bg-white p-3">
-            <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-700">
               Area (Census)
             </h3>
             <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-900">
@@ -765,7 +765,7 @@ export function ParcelDetailSheet({ parcel, onClose, asPage = false }: Props) {
         {/* ENERGY & SOLAR */}
         {!estimate ? (
           <section className="mb-2 rounded-xl border bg-white p-3">
-            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Energy & Solar</h3>
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-700">Energy & Solar</h3>
             <div className="space-y-1.5">
               <Skeleton h="3" /><Skeleton w="3/4" h="3" /><Skeleton w="5/6" h="3" />
             </div>
@@ -773,7 +773,7 @@ export function ParcelDetailSheet({ parcel, onClose, asPage = false }: Props) {
         ) : (
           <section className="mb-2 rounded-xl border bg-white p-3">
             <div className="mb-1.5 flex items-center justify-between">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Energy & Solar</h3>
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-700">Energy & Solar</h3>
               {finModelIsActual && (
                 <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
                   ★ Actual bill
@@ -828,7 +828,7 @@ export function ParcelDetailSheet({ parcel, onClose, asPage = false }: Props) {
         {/* ROOF ANALYSIS */}
         {rooftop ? (
           <section className="mb-2 rounded-xl border bg-white p-3">
-            <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Roof Analysis</h3>
+            <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-700">Roof Analysis</h3>
             <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-900">
               <dt className="font-medium text-slate-700">Facing</dt>
               <dd>{rooftop.south_facing ? "South-facing" : "Not south-facing"}</dd>
@@ -877,7 +877,7 @@ export function ParcelDetailSheet({ parcel, onClose, asPage = false }: Props) {
 
         {/* INCENTIVES */}
         <section className="mb-2">
-          <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
+          <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-700">
             Incentives ({parcel.state})
           </h3>
           <ul className="space-y-2">
@@ -924,7 +924,7 @@ export function ParcelDetailSheet({ parcel, onClose, asPage = false }: Props) {
         {/* NEIGHBORHOOD PROOF */}
         {triggers ? (
           <section className="mb-2 rounded-xl border bg-white p-3">
-            <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-700">
               Neighborhood (last 30d)
             </h3>
             <div className="flex gap-6 text-xs text-slate-800">

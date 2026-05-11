@@ -231,7 +231,7 @@ export function WalkRoute() {
         {/* Route list */}
         <div className={`flex flex-col border-r ${selected ? "hidden md:flex md:w-80" : "flex flex-1"}`}>
           <div className="flex items-center justify-between border-b px-4 py-2">
-            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-700">
               {sorted.length} stops · GPS-ordered
             </span>
             <div className="flex gap-2">
@@ -277,7 +277,7 @@ export function WalkRoute() {
                         {entry.address}
                       </span>
                       {entry.score >= 0 && !knocked && (
-                        <span className="shrink-0 text-xs font-semibold text-slate-500">
+                        <span className="shrink-0 text-xs font-semibold text-slate-700">
                           {entry.score}
                         </span>
                       )}
@@ -294,7 +294,7 @@ export function WalkRoute() {
           {/* Recent events */}
           {events && events.length > 0 && (
             <div className="border-t">
-              <p className="px-4 py-1 text-xs font-semibold uppercase tracking-wide text-slate-400">
+              <p className="px-4 py-1 text-xs font-semibold uppercase tracking-wide text-slate-700">
                 Recent knocks
               </p>
               <ul className="divide-y">
@@ -344,7 +344,7 @@ export function WalkRoute() {
               </div>
             </div>
 
-            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-700">
               Log outcome
             </p>
             <div className="mb-4 grid grid-cols-3 gap-2">
