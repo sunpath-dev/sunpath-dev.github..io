@@ -718,7 +718,7 @@ function TerritoryTab() {
 
 const DIRECT_CHECKS: ApiCheck[] = [
   { name: "NOAA NWS", category: "direct", endpoint: "https://api.weather.gov/", latencyMs: null, ok: null, label: "Weather API (primary)" },
-  { name: "Supabase REST", category: "direct", endpoint: `${SUPABASE_URL ?? ""}/rest/v1/`, latencyMs: null, ok: null, label: "Database API" },
+  { name: "Supabase REST", category: "direct", endpoint: `${SUPABASE_URL ?? ""}/rest/v1/rep?select=id&limit=1`, latencyMs: null, ok: null, label: "Database API" },
 ];
 
 const EDGE_FN_CHECKS: ApiCheck[] = [
@@ -786,7 +786,11 @@ function SystemTab() {
           headers["Authorization"] = `Bearer ${SUPABASE_ANON_KEY}`;
         }
         const res = await fetch(check.endpoint, { headers, signal: AbortSignal.timeout(8000) });
-        return { ...check, ok: res.ok, latencyMs: Date.now() - t0 };
+        // Accept any sub-500 for Supabase REST (200 = schema ok; 401 = service alive, auth issue)
+        const alive = check.name === "Supabase REST"
+          ? res.status < 500
+          : res.ok;
+        return { ...check, ok: alive, latencyMs: Date.now() - t0 };
       } else {
         // Edge function: send proper auth so CORS is clean, check for alive (not 502/503/404)
         const res = await fetch(`${SUPABASE_URL}/functions/v1/${check.endpoint}`, {
