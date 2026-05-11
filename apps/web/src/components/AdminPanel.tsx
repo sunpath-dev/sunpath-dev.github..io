@@ -1,20 +1,13 @@
-// AdminPanel — settings widget for admins.
-// Shows pending access requests, pending reps, and invite creation.
-// Module: invite / settings.
-
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase.js";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 
-interface InviteRow {
+interface RepRow {
   id: string;
-  token: string;
-  email: string;
+  display_name: string | null;
   role: string;
-  expires_at: string;
-  accepted_at: string | null;
-  revoked_at: string | null;
+  status: string;
   created_at: string;
 }
 
@@ -27,24 +20,56 @@ interface AccessRequest {
   created_at: string;
 }
 
-interface PendingRep {
+interface InviteRow {
   id: string;
-  display_name: string;
-  status: string;
+  token: string;
+  email: string;
+  role: string;
+  expires_at: string;
+  accepted_at: string | null;
+  revoked_at: string | null;
   created_at: string;
+}
+
+function relativeTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
+function RoleBadge({ role }: { role: string }) {
+  return (
+    <span className={`inline-block rounded-full px-1.5 py-0.5 text-xs font-semibold ${role === "admin" ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-600"}`}>
+      {role}
+    </span>
+  );
+}
+
+function SectionHeader({ title, count }: { title: string; count?: number }) {
+  return (
+    <div className="flex items-center gap-2 mb-2">
+      <div className="text-xs font-semibold uppercase tracking-wide text-slate-600">{title}</div>
+      {count !== undefined && count > 0 && (
+        <span className="rounded-full bg-amber-500 px-1.5 py-0.5 text-xs font-bold text-white leading-none">{count}</span>
+      )}
+    </div>
+  );
 }
 
 export function AdminPanel() {
   const [me, setMe] = useState<{ role?: string; id?: string } | null>(null);
-  const [invites, setInvites] = useState<InviteRow[]>([]);
+  const [allReps, setAllReps] = useState<RepRow[]>([]);
   const [requests, setRequests] = useState<AccessRequest[]>([]);
-  const [pendingReps, setPendingReps] = useState<PendingRep[]>([]);
-  const [email, setEmail] = useState("");
-  const [role, setRole] = useState<"rep" | "admin">("rep");
-  const [busy, setBusy] = useState(false);
-  const [decisionBusy, setDecisionBusy] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [lastUrl, setLastUrl] = useState<string | null>(null);
+  const [invites, setInvites] = useState<InviteRow[]>([]);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<"rep" | "admin">("rep");
+  const [inviteBusy, setInviteBusy] = useState(false);
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [inviteUrl, setInviteUrl] = useState<string | null>(null);
+  const [actionBusy, setActionBusy] = useState<string | null>(null);
   const [nowMs] = useState(() => Date.now());
 
   useEffect(() => {
@@ -52,255 +77,304 @@ export function AdminPanel() {
       const { data: auth } = await supabase.auth.getUser();
       const userId = auth.user?.id;
       if (!userId) return;
-      const { data } = await supabase
-        .from("rep")
-        .select("id, role")
-        .eq("auth_user_id", userId)
-        .maybeSingle();
+      const { data } = await supabase.from("rep").select("id, role").eq("auth_user_id", userId).maybeSingle();
       setMe(data ?? {});
     })();
   }, []);
 
-  const refreshAll = async () => {
-    const [invRes, reqRes, repRes] = await Promise.all([
-      supabase
-        .from("rep_invite")
-        .select("id,token,email,role,expires_at,accepted_at,revoked_at,created_at")
-        .order("created_at", { ascending: false })
-        .limit(50),
-      supabase
-        .from("rep_access_request")
-        .select("id,email,display_name,note,status,created_at")
-        .eq("status", "pending")
-        .order("created_at", { ascending: true })
-        .limit(50),
-      supabase
-        .from("rep")
-        .select("id,display_name,status,created_at")
-        .eq("status", "pending")
-        .order("created_at", { ascending: true })
-        .limit(50),
+  const refresh = async () => {
+    const [repsRes, reqRes, invRes] = await Promise.all([
+      supabase.from("rep").select("id,display_name,role,status,created_at").order("created_at", { ascending: true }),
+      supabase.from("rep_access_request").select("id,email,display_name,note,status,created_at").eq("status", "pending").order("created_at", { ascending: true }),
+      supabase.from("rep_invite").select("id,token,email,role,expires_at,accepted_at,revoked_at,created_at").order("created_at", { ascending: false }).limit(50),
     ]);
-    setInvites((invRes.data as InviteRow[] | null) ?? []);
+    setAllReps((repsRes.data as RepRow[] | null) ?? []);
     setRequests((reqRes.data as AccessRequest[] | null) ?? []);
-    setPendingReps((repRes.data as PendingRep[] | null) ?? []);
+    setInvites((invRes.data as InviteRow[] | null) ?? []);
   };
 
   useEffect(() => {
-    if (!me?.role) return;
-    if (me.role === "admin") {
-      queueMicrotask(() => { void refreshAll(); });
-    }
+    if (me?.role === "admin") void refresh();
   }, [me]);
 
-  const onCreateInvite = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!SUPABASE_URL) { setError("Supabase URL not configured."); return; }
-    setBusy(true);
-    setError(null);
-    setLastUrl(null);
-    try {
-      const accessToken = (await supabase.auth.getSession()).data.session?.access_token;
-      if (!accessToken) throw new Error("not signed in");
-      const res = await fetch(`${SUPABASE_URL}/functions/v1/invite-create`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
-        body: JSON.stringify({ email: email.trim(), role }),
-      });
-      const json = (await res.json()) as { invite_url?: string; error?: string };
-      if (!res.ok || !json.invite_url) throw new Error(json.error ?? `create failed (${res.status})`);
-      setLastUrl(json.invite_url);
-      setEmail("");
-      await refreshAll();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setBusy(false);
-    }
+  const setRepStatus = async (repId: string, status: string) => {
+    setActionBusy(repId);
+    await supabase.from("rep").update({ status }).eq("id", repId);
+    await refresh();
+    setActionBusy(null);
   };
 
-  const onRevokeInvite = async (id: string) => {
-    await supabase.from("rep_invite").update({ revoked_at: new Date().toISOString() }).eq("id", id);
-    await refreshAll();
+  const setRepRole = async (repId: string, role: string) => {
+    setActionBusy(repId + "-role");
+    await supabase.from("rep").update({ role }).eq("id", repId);
+    await refresh();
+    setActionBusy(null);
   };
 
-  const onDecideRequest = async (requestId: string, decision: "approve" | "reject") => {
+  const decideRequest = async (requestId: string, decision: "approve" | "reject") => {
     if (!SUPABASE_URL) return;
-    setDecisionBusy(requestId);
-    try {
-      const accessToken = (await supabase.auth.getSession()).data.session?.access_token;
-      if (!accessToken) throw new Error("not signed in");
+    setActionBusy(requestId);
+    const accessToken = (await supabase.auth.getSession()).data.session?.access_token;
+    if (accessToken) {
       await fetch(`${SUPABASE_URL}/functions/v1/approve-access`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
         body: JSON.stringify({ request_id: requestId, decision }),
       });
-      await refreshAll();
-    } finally {
-      setDecisionBusy(null);
     }
+    await refresh();
+    setActionBusy(null);
   };
 
-  const onApprovePendingRep = async (repId: string) => {
-    setDecisionBusy(repId);
-    try {
-      await supabase.from("rep").update({ status: "active" }).eq("id", repId);
-      await refreshAll();
-    } finally {
-      setDecisionBusy(null);
+  const createInvite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!SUPABASE_URL) { setInviteError("Supabase URL not configured."); return; }
+    setInviteBusy(true);
+    setInviteError(null);
+    setInviteUrl(null);
+    const accessToken = (await supabase.auth.getSession()).data.session?.access_token;
+    if (!accessToken) { setInviteError("Not signed in."); setInviteBusy(false); return; }
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/invite-create`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify({ email: inviteEmail.trim(), role: inviteRole }),
+    });
+    const json = (await res.json()) as { invite_url?: string; error?: string };
+    if (!res.ok || !json.invite_url) {
+      setInviteError(json.error ?? `Failed (${res.status})`);
+    } else {
+      setInviteUrl(json.invite_url);
+      setInviteEmail("");
+      await refresh();
     }
+    setInviteBusy(false);
   };
 
-  if (!me) return null;
-  if (me.role !== "admin") return null;
+  const revokeInvite = async (id: string) => {
+    await supabase.from("rep_invite").update({ revoked_at: new Date().toISOString() }).eq("id", id);
+    await refresh();
+  };
 
+  if (!me || me.role !== "admin") return null;
+
+  const pendingReps = allReps.filter((r) => r.status === "pending");
+  const activeReps = allReps.filter((r) => r.status === "active");
+  const suspendedReps = allReps.filter((r) => r.status === "suspended");
   const totalPending = requests.length + pendingReps.length;
 
   return (
-    <section className="mt-4 rounded-lg border bg-white p-3 text-sm shadow-sm space-y-4">
-      <h2 className="font-semibold text-slate-700">
-        Admin panel
-        {totalPending > 0 ? (
-          <span className="ml-2 rounded-full bg-amber-500 px-2 py-0.5 text-xs text-white">{totalPending}</span>
-        ) : null}
-      </h2>
+    <section className="rounded-xl border bg-white shadow-sm overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 border-b bg-slate-50">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold text-slate-800">Admin portal</span>
+          {totalPending > 0 && (
+            <span className="rounded-full bg-amber-500 px-2 py-0.5 text-xs font-bold text-white">{totalPending}</span>
+          )}
+        </div>
+        <button type="button" onClick={() => void refresh()} className="text-xs text-slate-500 hover:text-slate-700">
+          Refresh
+        </button>
+      </div>
 
-      {/* Pending access requests */}
-      {requests.length > 0 && (
-        <div>
-          <div className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-700">
-            Pending access requests ({requests.length})
-          </div>
-          <ul className="divide-y border rounded text-xs">
-            {requests.map((r) => (
-              <li key={r.id} className="flex items-start gap-2 p-2">
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium text-slate-800 truncate">{r.email}</div>
-                  {r.display_name ? <div className="text-slate-500">{r.display_name}</div> : null}
-                  {r.note ? <div className="text-slate-400 italic">{r.note}</div> : null}
-                </div>
-                <div className="flex gap-1 shrink-0">
+      <div className="divide-y">
+
+        {/* Pending access requests */}
+        <div className="px-4 py-3 space-y-2">
+          <SectionHeader title="Access requests" count={requests.length} />
+          {requests.length === 0 ? (
+            <p className="text-xs text-slate-400">No pending requests.</p>
+          ) : (
+            <ul className="space-y-2">
+              {requests.map((r) => (
+                <li key={r.id} className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="font-semibold text-slate-800 truncate">{r.email}</div>
+                      {r.display_name && <div className="text-slate-600">{r.display_name}</div>}
+                      {r.note && <div className="text-slate-500 italic mt-0.5">{r.note}</div>}
+                      <div className="text-slate-400 mt-0.5">{relativeTime(r.created_at)}</div>
+                    </div>
+                    <div className="flex gap-1 shrink-0">
+                      <button
+                        type="button"
+                        disabled={actionBusy === r.id}
+                        onClick={() => void decideRequest(r.id, "approve")}
+                        className="rounded bg-emerald-500 px-2 py-1 text-white hover:bg-emerald-600 disabled:opacity-50"
+                      >
+                        Approve
+                      </button>
+                      <button
+                        type="button"
+                        disabled={actionBusy === r.id}
+                        onClick={() => void decideRequest(r.id, "reject")}
+                        className="rounded border border-slate-300 px-2 py-1 text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {/* Pending accounts */}
+        <div className="px-4 py-3 space-y-2">
+          <SectionHeader title="Pending accounts" count={pendingReps.length} />
+          {pendingReps.length === 0 ? (
+            <p className="text-xs text-slate-400">No pending accounts.</p>
+          ) : (
+            <ul className="space-y-1">
+              {pendingReps.map((r) => (
+                <li key={r.id} className="flex items-center gap-2 rounded-lg border px-3 py-2 text-xs">
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-slate-800 truncate">{r.display_name ?? "(no name)"}</div>
+                    <div className="text-slate-400">{relativeTime(r.created_at)}</div>
+                  </div>
+                  <RoleBadge role={r.role} />
                   <button
                     type="button"
-                    disabled={decisionBusy === r.id}
-                    onClick={() => void onDecideRequest(r.id, "approve")}
+                    disabled={actionBusy === r.id}
+                    onClick={() => void setRepStatus(r.id, "active")}
                     className="rounded bg-emerald-500 px-2 py-1 text-white hover:bg-emerald-600 disabled:opacity-50"
                   >
                     Approve
                   </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {/* Active reps */}
+        <div className="px-4 py-3 space-y-2">
+          <SectionHeader title={`Active reps (${activeReps.length})`} />
+          {activeReps.length === 0 ? (
+            <p className="text-xs text-slate-400">No active reps.</p>
+          ) : (
+            <ul className="space-y-1">
+              {activeReps.map((r) => (
+                <li key={r.id} className="flex items-center gap-2 rounded-lg border px-3 py-2 text-xs">
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-slate-800 truncate">{r.display_name ?? "(no name)"}</div>
+                    <div className="text-slate-400">{relativeTime(r.created_at)}</div>
+                  </div>
+                  <RoleBadge role={r.role} />
                   <button
                     type="button"
-                    disabled={decisionBusy === r.id}
-                    onClick={() => void onDecideRequest(r.id, "reject")}
+                    disabled={actionBusy === r.id + "-role"}
+                    onClick={() => void setRepRole(r.id, r.role === "admin" ? "rep" : "admin")}
                     className="rounded border border-slate-300 px-2 py-1 text-slate-600 hover:bg-slate-50 disabled:opacity-50"
                   >
-                    Reject
+                    {r.role === "admin" ? "Make rep" : "Make admin"}
                   </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {/* Pending reps (signed in but not yet approved) */}
-      {pendingReps.length > 0 && (
-        <div>
-          <div className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-700">
-            Pending accounts ({pendingReps.length})
-          </div>
-          <ul className="divide-y border rounded text-xs">
-            {pendingReps.map((r) => (
-              <li key={r.id} className="flex items-center gap-2 p-2">
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium text-slate-800 truncate">{r.display_name}</div>
-                  <div className="text-slate-400">Signed in, awaiting approval</div>
-                </div>
-                <button
-                  type="button"
-                  disabled={decisionBusy === r.id}
-                  onClick={() => void onApprovePendingRep(r.id)}
-                  className="rounded bg-emerald-500 px-2 py-1 text-white hover:bg-emerald-600 disabled:opacity-50"
-                >
-                  Approve
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {/* Create invite */}
-      <div>
-        <div className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-700">Create invite link</div>
-        <form onSubmit={(e) => void onCreateInvite(e)} className="flex flex-col gap-2 sm:flex-row">
-          <input
-            type="email"
-            required
-            placeholder="rep@example.com"
-            className="flex-1 rounded border px-2 py-1 text-sm"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-          <select
-            className="rounded border px-2 py-1 text-sm"
-            value={role}
-            onChange={(e) => setRole(e.target.value as typeof role)}
-          >
-            <option value="rep">rep</option>
-            <option value="admin">admin</option>
-          </select>
-          <button
-            type="submit"
-            disabled={busy || !email.trim()}
-            className="rounded bg-amber-500 px-3 py-1 text-sm font-medium text-white disabled:opacity-50"
-          >
-            {busy ? "Generating…" : "Create invite"}
-          </button>
-        </form>
-        {error ? <p className="mt-1 text-xs text-red-700">{error}</p> : null}
-        {lastUrl ? (
-          <div className="mt-2 break-all rounded border border-emerald-300 bg-emerald-50 p-2 text-xs text-emerald-800">
-            <div className="mb-1 font-semibold">Invite link (copy &amp; send):</div>
-            <code>{lastUrl}</code>
-          </div>
-        ) : null}
-      </div>
-
-      {/* Invite list */}
-      {invites.length > 0 ? (
-        <div>
-          <div className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-700">Invites</div>
-          <ul className="divide-y border-t text-xs">
-            {invites.map((inv) => {
-              const status = inv.accepted_at
-                ? "accepted"
-                : inv.revoked_at
-                  ? "revoked"
-                  : new Date(inv.expires_at).getTime() < nowMs
-                    ? "expired"
-                    : "pending";
-              return (
-                <li key={inv.id} className="flex items-center justify-between gap-2 py-1.5">
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-slate-700 truncate">{inv.email}</div>
-                    <div className="text-slate-500">{inv.role} · {status}</div>
-                  </div>
-                  {status === "pending" ? (
-                    <button
-                      type="button"
-                      onClick={() => void onRevokeInvite(inv.id)}
-                      className="text-red-600 hover:underline shrink-0"
-                    >
-                      revoke
-                    </button>
-                  ) : null}
+                  <button
+                    type="button"
+                    disabled={actionBusy === r.id}
+                    onClick={() => void setRepStatus(r.id, "suspended")}
+                    className="rounded border border-red-200 px-2 py-1 text-red-600 hover:bg-red-50 disabled:opacity-50"
+                  >
+                    Suspend
+                  </button>
                 </li>
-              );
-            })}
-          </ul>
+              ))}
+            </ul>
+          )}
         </div>
-      ) : null}
+
+        {/* Suspended reps */}
+        {suspendedReps.length > 0 && (
+          <div className="px-4 py-3 space-y-2">
+            <SectionHeader title={`Suspended (${suspendedReps.length})`} />
+            <ul className="space-y-1">
+              {suspendedReps.map((r) => (
+                <li key={r.id} className="flex items-center gap-2 rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-xs">
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-slate-700 truncate">{r.display_name ?? "(no name)"}</div>
+                    <div className="text-slate-400">{relativeTime(r.created_at)}</div>
+                  </div>
+                  <RoleBadge role={r.role} />
+                  <button
+                    type="button"
+                    disabled={actionBusy === r.id}
+                    onClick={() => void setRepStatus(r.id, "active")}
+                    className="rounded bg-slate-600 px-2 py-1 text-white hover:bg-slate-700 disabled:opacity-50"
+                  >
+                    Reactivate
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Create invite */}
+        <div className="px-4 py-3 space-y-2">
+          <SectionHeader title="Send invite link" />
+          <form onSubmit={(e) => void createInvite(e)} className="flex flex-col gap-2 sm:flex-row">
+            <input
+              type="email"
+              required
+              placeholder="rep@example.com"
+              value={inviteEmail}
+              onChange={(e) => setInviteEmail(e.target.value)}
+              className="flex-1 rounded border border-slate-200 px-2 py-1.5 text-xs"
+            />
+            <select
+              value={inviteRole}
+              onChange={(e) => setInviteRole(e.target.value as "rep" | "admin")}
+              className="rounded border border-slate-200 px-2 py-1.5 text-xs"
+            >
+              <option value="rep">rep</option>
+              <option value="admin">admin</option>
+            </select>
+            <button
+              type="submit"
+              disabled={inviteBusy || !inviteEmail.trim()}
+              className="rounded bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-600 disabled:opacity-50"
+            >
+              {inviteBusy ? "Generating…" : "Create invite"}
+            </button>
+          </form>
+          {inviteError && <p className="text-xs text-red-700">{inviteError}</p>}
+          {inviteUrl && (
+            <div className="rounded border border-emerald-300 bg-emerald-50 p-2 text-xs text-emerald-800">
+              <div className="font-semibold mb-1">Copy and send this link:</div>
+              <code className="break-all">{inviteUrl}</code>
+            </div>
+          )}
+        </div>
+
+        {/* Invite list */}
+        {invites.length > 0 && (
+          <div className="px-4 py-3 space-y-2">
+            <SectionHeader title="Invites" />
+            <ul className="divide-y text-xs">
+              {invites.map((inv) => {
+                const status = inv.accepted_at ? "accepted"
+                  : inv.revoked_at ? "revoked"
+                  : new Date(inv.expires_at).getTime() < nowMs ? "expired"
+                  : "pending";
+                return (
+                  <li key={inv.id} className="flex items-center justify-between gap-2 py-1.5">
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium text-slate-700 truncate">{inv.email}</div>
+                      <div className="text-slate-400">{inv.role} · {status} · {relativeTime(inv.created_at)}</div>
+                    </div>
+                    {status === "pending" && (
+                      <button type="button" onClick={() => void revokeInvite(inv.id)} className="text-red-500 hover:underline shrink-0">
+                        revoke
+                      </button>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
+
+      </div>
     </section>
   );
 }
