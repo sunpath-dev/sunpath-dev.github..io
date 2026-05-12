@@ -1,14 +1,12 @@
 // ingest-parcels — Supabase Edge Function (cron, daily).
 //
-// Incremental parcel upsert from VGIN's statewide ArcGIS FeatureServer
-// for Scott County, VA (FIPS 51169). Mirrors the field map used by the
-// `parcel-adapters/virginia/scott.ts` adapter (CLI version), but runs
-// in a Deno edge function so it can be cron-scheduled without a CI
-// runner.
+// Incremental parcel upsert from VGIN's VA_Address_Points FeatureServer.
+// Uses the same service and field mapping as parcel-adapters/virginia/scott.ts.
+// Filtered to a specific county by FIPS (e.g. '51169' for Scott County, VA).
 //
-// For full county loads, prefer `pnpm ingest:parcels` from a runner
-// (no 60s wall-clock cap). This edge fn is for *incremental* daily
-// re-syncs — bounded by `MAX_FEATURES` per run.
+// For full county loads, prefer the ingest-parcels GitHub Actions workflow
+// (no 60s wall-clock cap). This edge fn is for incremental daily re-syncs,
+// bounded by MAX_FEATURES per run.
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -17,15 +15,15 @@ const CORS_HEADERS = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+// VGIN statewide address-points layer — point geometry + full address per site.
 const DEFAULT_VGIN_URL =
-  "https://vginmaps.vdem.virginia.gov/arcgis/rest/services/VA_Base_Layers/VA_Parcels/FeatureServer/0";
+  "https://vginmaps.vdem.virginia.gov/arcgis/rest/services/VA_Base_Layers/VA_Address_Points/FeatureServer/0";
 const PAGE_SIZE = 500;
 const MAX_FEATURES = 5000; // daily incremental cap
 
 interface ArcGisFeature {
   attributes: Record<string, unknown>;
   geometry?: {
-    rings?: number[][][];
     x?: number;
     y?: number;
   };
@@ -37,56 +35,8 @@ interface ArcGisResponse {
   error?: { code: number; message: string };
 }
 
-const FIELDS = {
-  pin: ["PIN", "ParcelID", "PARCELID", "GPIN"],
-  address: ["LocAddress", "SitusAddress", "ADDRESS", "PropertyAd"],
-  city: ["LocCity", "SitusCity", "CITY"],
-  zip: ["LocZip", "SitusZip", "ZIP"],
-  acres: ["Acres", "ACREAGE"],
-  year_built: ["YearBuilt", "YR_BUILT"],
-  assessed: ["AssessedValue", "TotalValue", "ASMT_VAL"],
-} as const;
-
-function pick<T = unknown>(
-  attrs: Record<string, unknown>,
-  keys: readonly string[],
-): T | undefined {
-  for (const k of keys) {
-    const v = attrs[k];
-    if (v !== undefined && v !== null && v !== "") return v as T;
-  }
-  return undefined;
-}
-
-function bboxCentroidFromRings(
-  rings: number[][][] | undefined,
-): [number, number] | null {
-  if (!rings || rings.length === 0) return null;
-  let minX = Infinity;
-  let maxX = -Infinity;
-  let minY = Infinity;
-  let maxY = -Infinity;
-  for (const ring of rings) {
-    for (const pt of ring) {
-      const x = pt[0];
-      const y = pt[1];
-      if (typeof x !== "number" || typeof y !== "number") continue;
-      if (x < minX) minX = x;
-      if (x > maxX) maxX = x;
-      if (y < minY) minY = y;
-      if (y > maxY) maxY = y;
-    }
-  }
-  if (minX === Infinity) return null;
-  return [(minX + maxX) / 2, (minY + maxY) / 2];
-}
-
-function parseZip(raw: unknown): string | null {
-  if (raw === null || raw === undefined) return null;
-  const m = /^(\d{5})(?:-?(\d{4}))?$/.exec(String(raw).trim());
-  if (!m) return null;
-  return m[2] ? `${m[1]}-${m[2]}` : (m[1] ?? null);
-}
+// Maps state FIPS → 2-letter abbreviation
+const FIPS_STATE: Record<string, string> = { "51": "VA" };
 
 interface ParcelRow {
   external_id: string;
@@ -102,12 +52,16 @@ interface ParcelRow {
   has_existing_solar: boolean;
 }
 
-// Maps state FIPS → 2-letter abbreviation (expand as new states are added)
-const FIPS_STATE: Record<string, string> = { "51": "VA" };
-
 interface RequestBody {
   state_fips?: string;
   county_fips?: string;
+}
+
+function formatZip(raw: unknown): string | null {
+  if (raw == null || raw === "") return null;
+  const n = typeof raw === "number" ? raw : parseInt(String(raw), 10);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return String(n).padStart(5, "0");
 }
 
 function normalize(
@@ -117,34 +71,42 @@ function normalize(
   stateAbbrev: string,
 ): ParcelRow | null {
   const a = f.attributes ?? {};
-  const externalId = pick<string | number>(a, FIELDS.pin);
+
+  const externalId = a["ADDPTKEY"];
   if (!externalId) return null;
-  const address = pick<string>(a, FIELDS.address);
-  if (!address) return null;
-  const zip = parseZip(pick(a, FIELDS.zip));
+
+  const fullAddr = a["FULLADDR"];
+  if (!fullAddr || typeof fullAddr !== "string" || !fullAddr.trim()) return null;
+
+  const zip = formatZip(a["ZIP_5"]);
   if (!zip) return null;
-  const centroid = bboxCentroidFromRings(f.geometry?.rings)
-    ?? (typeof f.geometry?.x === "number" && typeof f.geometry?.y === "number"
-      ? [f.geometry.x, f.geometry.y]
-      : null);
-  if (!centroid) return null;
-  const yearBuilt = pick<number>(a, FIELDS.year_built);
-  const assessed = pick<number>(a, FIELDS.assessed);
+
+  // Address-points geometry is a Point (x/y directly on geometry object)
+  const geom = f.geometry;
+  if (
+    !geom ||
+    typeof geom.x !== "number" ||
+    typeof geom.y !== "number" ||
+    !isFinite(geom.x) ||
+    !isFinite(geom.y)
+  ) return null;
+
+  const rawCity =
+    (a["PO_NAME"] as string | undefined)?.trim() ||
+    (a["MUNICIPALITY"] as string | undefined)?.trim() ||
+    "Scott County";
+
   return {
     external_id: String(externalId),
     state_fips: stateFips,
     county_fips: countyFips,
-    address_line1: String(address).trim(),
-    city: String(pick<string>(a, FIELDS.city) ?? "").trim(),
+    address_line1: fullAddr.trim(),
+    city: rawCity || "Scott County",
     state: stateAbbrev,
     postal_code: zip,
-    centroid: `SRID=4326;POINT(${centroid[0]} ${centroid[1]})`,
-    year_built:
-      typeof yearBuilt === "number" && Number.isFinite(yearBuilt)
-        ? Math.trunc(yearBuilt)
-        : null,
-    assessed_value_usd:
-      typeof assessed === "number" && assessed >= 0 ? assessed : null,
+    centroid: `SRID=4326;POINT(${geom.x} ${geom.y})`,
+    year_built: null,
+    assessed_value_usd: null,
     has_existing_solar: false,
   };
 }
@@ -156,7 +118,7 @@ async function fetchPage(
 ): Promise<ArcGisResponse> {
   const params = new URLSearchParams({
     where,
-    outFields: "*",
+    outFields: "ADDPTKEY,FULLADDR,PO_NAME,MUNICIPALITY,ZIP_5",
     returnGeometry: "true",
     outSR: "4326",
     f: "json",
@@ -188,7 +150,6 @@ Deno.serve(async (req: Request) => {
     );
   }
 
-  // Parse optional county targeting from request body
   let body: RequestBody = {};
   try { body = await req.json() as RequestBody; } catch { /* empty body is fine */ }
   const stateFips = (body.state_fips ?? "51").replace(/\D/g, "").padStart(2, "0").slice(0, 2);
@@ -196,7 +157,7 @@ Deno.serve(async (req: Request) => {
   const stateAbbrev = FIPS_STATE[stateFips] ?? "VA";
   const fipsFull = `${stateFips}${countyFips}`;
   const endpoint = Deno.env.get("VGIN_PARCELS_URL") ?? DEFAULT_VGIN_URL;
-  const where = `FIPS = '${fipsFull}' OR CountyFIPS = '${countyFips}'`;
+  const where = `FIPS = '${fipsFull}'`;
 
   const headers = {
     apikey: serviceKey,

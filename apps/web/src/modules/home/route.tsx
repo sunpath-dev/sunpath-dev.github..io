@@ -116,8 +116,15 @@ function geoCacheKey(lat: number, lon: number): string {
   return `geo-reverse:${Math.round(lat * 100) / 100},${Math.round(lon * 100) / 100}`;
 }
 
+function greeting(name: string | null): string {
+  const h = new Date().getHours();
+  const period = h < 12 ? "morning" : h < 17 ? "afternoon" : "evening";
+  const first = name ? name.split(" ")[0] : null;
+  return first ? `Good ${period}, ${first}!` : `Good ${period}!`;
+}
+
 export function HomeRoute() {
-  const { rep } = useAuth();
+  const { rep, session } = useAuth();
   const navigate = useNavigate();
   const { order, collapsed, reorder, toggleCollapsed, resetLayout } =
     useDashboardLayout(STORAGE_KEY, DEFAULT_ORDER);
@@ -134,6 +141,7 @@ export function HomeRoute() {
   const [doorsToday, setDoorsToday] = useState(0);
   const [doorsWeek, setDoorsWeek] = useState(0);
   const [showPitches, setShowPitches] = useState(false);
+  const [displayName, setDisplayName] = useState<string | null>(null);
 
   // Derived: recomputes whenever weather changes OR tick fires
   const countdown = useMemo(
@@ -143,6 +151,19 @@ export function HomeRoute() {
   );
 
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Greeting: fetch rep display_name (falls back to email prefix)
+  useEffect(() => {
+    if (!rep?.id || rep.id === "poc-guest") {
+      setDisplayName(session?.user?.email?.split("@")[0] ?? null);
+      return;
+    }
+    void supabase.from("rep").select("display_name").eq("id", rep.id).maybeSingle()
+      .then(({ data }) => {
+        const name = (data as { display_name?: string | null } | null)?.display_name ?? null;
+        setDisplayName(name ?? session?.user?.email?.split("@")[0] ?? null);
+      });
+  }, [rep, session]);
 
   // Route
   useEffect(() => {
@@ -573,11 +594,14 @@ export function HomeRoute() {
     <div className="flex flex-1 min-h-0 flex-col overflow-y-auto bg-slate-50">
       {/* Weather strip — non-draggable header */}
       <div className="bg-amber-500 px-4 py-3 text-white">
-        <div className="flex items-baseline justify-between">
-          <span className="text-sm font-semibold">{today}</span>
+        <div className="flex items-baseline justify-between mb-0.5">
+          <span className="text-base font-bold">{greeting(displayName)}</span>
           {(doorsToday > 0 || doorsWeek > 0) && (
             <span className="text-xs opacity-90">{doorsToday} doors today · {doorsWeek} this week</span>
           )}
+        </div>
+        <div className="flex items-baseline justify-between">
+          <span className="text-xs opacity-80">{today}</span>
         </div>
         {weather ? (
           <>
