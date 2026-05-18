@@ -31,7 +31,7 @@
     "supabase:fix-auth": "pwsh ./scripts/fix-auth-redirects.ps1"
   },
   "devDependencies": {
-    "@playwright/test": "^1.59.1",
+    "@playwright/test": "^1.60.0",
     "@sunpath/parcel-adapters": "workspace:*",
     "@sunpath/shared": "workspace:*",
     "@supabase/supabase-js": "^2.45.0",
